@@ -1,0 +1,4 @@
+name: review-plugin
+description: Bundles a Claude Code hook for review checks.
+hooks:
+  dialect: claude-code

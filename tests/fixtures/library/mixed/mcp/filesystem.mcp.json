@@ -1,0 +1,6 @@
+{
+  "name": "filesystem",
+  "mcp": {
+    "format": "json"
+  }
+}

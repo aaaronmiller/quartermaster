@@ -1,0 +1,4 @@
+name: test-agent
+description: Runs focused tests.
+tools:
+  - Bash
