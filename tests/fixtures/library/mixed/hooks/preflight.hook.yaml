@@ -1,0 +1,3 @@
+name: preflight
+description: Claude hook that runs before deployment.
+dialect: claude-code
