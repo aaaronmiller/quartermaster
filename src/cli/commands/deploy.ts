@@ -2,8 +2,9 @@ import { createDeploymentPlan } from "../../core/deploy/plan";
 import { applyPlacement } from "../../core/deploy/placer";
 import { createDeploymentRecord } from "../../core/deploy/records";
 import { applyRollback, createRollbackPlan } from "../../core/deploy/rollback";
-import { scopeArtifacts } from "../../core/deploy/scope";
+import { scopeArtifactsFromRepository } from "../../core/deploy/scope";
 import { loadProfiles } from "../../core/audit/profile-registry";
+import { activeLoadoutForHarness } from "../../core/loadouts/loadouts";
 import { argValue, fail, hasFlag, printJson, printText } from "../output";
 import type { Repository } from "../../storage/repository";
 
@@ -22,12 +23,14 @@ export function deployCommand(repo: Repository, args: string[]): void {
     printJson({ rollback: hasFlag(args, "--yes") ? "applied" : "preview", operations });
     return;
   }
-  const artifacts = scopeArtifacts(repo.listArtifacts(), { loadout: null, path: argValue(args, "--path"), type: null });
+  const explicitLoadout = argValue(args, "--loadout");
+  const loadout = explicitLoadout ? repo.getLoadout(explicitLoadout) ?? fail(`Loadout not found: ${explicitLoadout}`) : activeLoadoutForHarness(repo, profile.id);
+  const artifacts = scopeArtifactsFromRepository(repo, { loadout, path: argValue(args, "--path"), type: null });
   const planInput: Parameters<typeof createDeploymentPlan>[0] = {
     artifacts,
     verdicts: repo.listVerdicts(),
     profile,
-    scope: argValue(args, "--path") ?? "all"
+    scope: explicitLoadout ? `loadout:${loadout?.name ?? explicitLoadout}` : loadout ? `active-loadout:${loadout.name}` : argValue(args, "--path") ?? "all"
   };
   const targetRoot = argValue(args, "--target-root");
   if (targetRoot) planInput.targetRoot = targetRoot;

@@ -7,6 +7,7 @@ import type {
   EvaluationProposal,
   GuidanceFile,
   Loadout,
+  LoadoutAssignment,
   Pipeline,
   Source
 } from "../core/types";
@@ -146,8 +147,31 @@ export class Repository {
     return (this.db.query("SELECT * FROM loadouts ORDER BY name").all() as Record<string, unknown>[]).map((row) => ({ ...row, members: json.parse(row.members as string) }) as Loadout);
   }
 
+  saveLoadoutAssignment(assignment: LoadoutAssignment): void {
+    this.db.query("INSERT OR REPLACE INTO loadout_assignments VALUES (?,?,?,?)").run(
+      assignment.harness_id,
+      assignment.loadout_id,
+      assignment.active ? 1 : 0,
+      assignment.assigned_at
+    );
+  }
+
+  getLoadoutAssignment(harness_id: string): LoadoutAssignment | null {
+    const row = this.db.query("SELECT * FROM loadout_assignments WHERE harness_id = ?").get(harness_id) as Record<string, unknown> | null;
+    return row ? rowToLoadoutAssignment(row) : null;
+  }
+
+  listLoadoutAssignments(): LoadoutAssignment[] {
+    return (this.db.query("SELECT * FROM loadout_assignments ORDER BY harness_id").all() as Record<string, unknown>[]).map(rowToLoadoutAssignment);
+  }
+
   savePipeline(pipeline: Pipeline): void {
     this.db.query("INSERT OR REPLACE INTO pipelines VALUES (?,?,?,?,?,?,?)").run(pipeline.id, pipeline.name, pipeline.use_case, pipeline.directive, pipeline.origin, json.stringify(pipeline.members), pipeline.updated_at);
+  }
+
+  getPipeline(nameOrId: string): Pipeline | null {
+    const row = this.db.query("SELECT * FROM pipelines WHERE id = ? OR name = ?").get(nameOrId, nameOrId) as Record<string, unknown> | null;
+    return row ? { ...row, members: json.parse(row.members as string) } as Pipeline : null;
   }
 
   listPipelines(): Pipeline[] {
@@ -156,6 +180,10 @@ export class Repository {
 
   saveGuidance(guidance: GuidanceFile): void {
     this.db.query("INSERT OR REPLACE INTO guidance_files VALUES (?,?,?,?,?,?)").run(guidance.id, guidance.scope, guidance.harness_id ?? null, guidance.body, guidance.managed_section, guidance.updated_at);
+  }
+
+  listGuidance(): GuidanceFile[] {
+    return this.db.query("SELECT * FROM guidance_files ORDER BY scope,harness_id").all() as GuidanceFile[];
   }
 
   saveFinding(finding: AuditFinding): void {
@@ -180,6 +208,17 @@ export class Repository {
       proposal.accepted === null ? null : proposal.accepted ? 1 : 0,
       proposal.created_at
     );
+  }
+
+  getProposal(id: string): EvaluationProposal | null {
+    const row = this.db.query("SELECT * FROM evaluation_proposals WHERE id = ?").get(id) as Record<string, unknown> | null;
+    return row
+      ? {
+          ...row,
+          payload: json.parse(row.payload as string),
+          accepted: row.accepted === null ? null : Boolean(row.accepted)
+        } as EvaluationProposal
+      : null;
   }
 
   listProposals(): EvaluationProposal[] {
@@ -210,5 +249,14 @@ function rowToDeployment(row: Record<string, unknown>): DeploymentRecord {
     applied_at: row.applied_at as string,
     operations: json.parse(row.operations as string),
     prior_state_ref: row.prior_state_ref as string | null
+  };
+}
+
+function rowToLoadoutAssignment(row: Record<string, unknown>): LoadoutAssignment {
+  return {
+    harness_id: row.harness_id as string,
+    loadout_id: row.loadout_id as string,
+    active: Boolean(row.active),
+    assigned_at: row.assigned_at as string
   };
 }

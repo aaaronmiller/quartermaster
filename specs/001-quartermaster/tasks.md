@@ -135,6 +135,16 @@ pipelines, deployments, and guidance remain unchanged until explicit accept/edit
 - [X] T069 Update `CHANGELOG.md` with implemented Quartermaster functionality under `[Unreleased]`
 - [X] T070 Run `bun test` and record any unresolved test gaps in `specs/001-quartermaster/quickstart.md`
 
+## Phase 11: Surface Completion From Recovered UX Intent
+
+- [X] T071 Add shared dashboard and recommendation summary model for CLI, TUI, and web surfaces
+- [X] T072 Extend `qm query` with summary, search, proposals, loadouts, and pipelines JSON operations
+- [X] T073 Replace placeholder TUI state with a dense operator console model over real repository data
+- [X] T074 Expand local Hono API routes for dashboard, catalog search, matrix, deployments, loadouts, pipelines, proposals, and guidance
+- [X] T075 Replace the bare Svelte table with a dark-mode-first operational dashboard
+- [X] T076 Add tests for query, TUI, and web API surface behavior
+- [X] T077 Update `CHANGELOG.md` and rerun validation
+
 ## Dependencies
 
 - Phase 1 and Phase 2 must complete before user stories.
@@ -163,3 +173,5 @@ pipelines, deployments, and guidance remain unchanged until explicit accept/edit
 3. Add source sync and safety scanning.
 4. Add advisory evaluation.
 5. Add query, TUI, and web surfaces over the stable core.
+6. Complete the UX surface layer from the recovered transcript and PDF context, keeping every view
+   grounded in real catalog, audit, loadout, pipeline, deployment, and proposal data.

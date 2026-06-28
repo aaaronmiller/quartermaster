@@ -123,6 +123,13 @@ export interface Loadout {
   updated_at: string;
 }
 
+export interface LoadoutAssignment {
+  harness_id: string;
+  loadout_id: string;
+  active: boolean;
+  assigned_at: string;
+}
+
 export interface Pipeline {
   id: string;
   name: string;
@@ -161,7 +168,7 @@ export interface AuditFinding {
 
 export interface EvaluationProposal {
   id: string;
-  kind: "grade" | "comparison" | "loadout" | "pipeline";
+  kind: "grade" | "comparison" | "loadout" | "pipeline" | "audit" | "improvement" | "fix";
   payload: unknown;
   rationale: string;
   model: string;

@@ -56,6 +56,12 @@ export function migrate(db: Database): void {
       members TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS loadout_assignments (
+      harness_id TEXT PRIMARY KEY,
+      loadout_id TEXT NOT NULL,
+      active INTEGER NOT NULL,
+      assigned_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS pipelines (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
