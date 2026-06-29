@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // Quartermaster — Harness Profile Registry
-// Loads, validates, and manages declarative YAML profiles.
+// Declarative profile data for audit and deployment engines.
 // ─────────────────────────────────────────────────────────────
 
 import type {
@@ -10,190 +10,156 @@ import type {
   DeploymentConfig,
   HarnessProfile,
 } from '@core/types';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import yaml from 'js-yaml';
-import { join } from 'path';
 
-interface ProfileValidationIssue {
+export interface ProfileValidationIssue {
   field: string;
   message: string;
 }
 
-// ─── Built-in profiles ──────────────────────────────────────
+export interface ProfileRegistryOptions {
+  /** Additional directories containing .json/.yaml profiles. */
+  profileDirs?: string[];
+  /** Load project/user default directories. Default true. */
+  includeDefaultDirs?: boolean;
+}
 
 const BUILTIN_PROFILES: HarnessProfile[] = [
   {
-    name: 'claude-code',
+    id: 'claude-code',
+    name: 'Claude Code',
+    version: 1,
+    guidanceFilename: 'CLAUDE.md',
     artifactTypes: [
-      {
-        type: 'skill',
-        locations: { global: '/home/cheta/.claude/skills/', project: '.claude/skills/' },
-        flat: false,
-        configFormat: null,
-      },
-      {
-        type: 'plugin',
-        locations: { global: '/home/cheta/.claude/plugins/', project: '.claude/plugins/' },
-        flat: false,
-        configFormat: 'json',
-      },
-      {
-        type: 'hook',
-        locations: { global: '/home/cheta/.claude/hooks/', project: '.claude/hooks/' },
-        flat: false,
-        configFormat: null,
-      },
-      {
-        type: 'mcp-config',
-        locations: { global: '/home/cheta/.claude/mcp.json', project: '.claude/mcp.json' },
-        flat: true,
-        configFormat: 'json',
-      },
-      {
-        type: 'slash-command',
-        locations: { global: '/home/cheta/.claude/commands/', project: '.claude/commands/' },
-        flat: false,
-        configFormat: 'md',
-      },
+      loc('skill', '~/.claude/skills', '.claude/skills', true, null, 'skills'),
+      loc('plugin', '~/.claude/plugins', '.claude/plugins', false, 'claude-plugin-json', 'plugins'),
+      loc('agent', '~/.claude/agents', '.claude/agents', false, 'yaml', 'agents'),
+      loc('hook', '~/.claude/hooks', '.claude/hooks', false, 'yaml', 'hooks'),
+      loc('mcp-config', '~/.claude/.mcp.json', '.claude/.mcp.json', true, 'claude-mcp-json'),
+      loc('slash-command', '~/.claude/commands', '.claude/commands', false, 'markdown', 'commands'),
+      loc('output-style', '~/.claude/output-styles', '.claude/output-styles', false, 'markdown'),
+      loc('script', '~/.claude/scripts', '.claude/scripts', false, null, 'scripts'),
     ],
     capabilities: [
-      { type: 'skill', dialects: ['agent-md'] },
-      { type: 'hooks', dialects: ['claude'] },
-      { type: 'mcp', dialects: ['single-server', 'multi-server'] },
-      { type: 'plugin', dialects: ['generic'] },
-      { type: 'commands', dialects: ['agent'] },
+      cap('skill', ['agent-md']),
+      cap('plugin', ['generic']),
+      cap('agent-config', ['generic']),
+      cap('hooks', ['claude', 'plugin']),
+      cap('mcp', ['single-server', 'multi-server', 'claude-mcp-json']),
+      cap('commands', ['claude']),
+      cap('output-style', ['generic']),
+      cap('scripts', ['bash', 'zsh', 'python', 'node', 'typescript']),
     ],
     deployment: { method: 'link', crossDevice: false, priorStateBackup: true },
   },
   {
-    name: 'codex',
+    id: 'codex',
+    name: 'Codex',
+    version: 1,
+    guidanceFilename: 'AGENTS.md',
     artifactTypes: [
-      {
-        type: 'skill',
-        locations: { global: '/home/cheta/.codex/skills/', project: '.codex/skills/' },
-        flat: true,
-        configFormat: null,
-      },
-      {
-        type: 'plugin',
-        locations: { global: '/home/cheta/.codex/plugins/', project: '.codex/plugins/' },
-        flat: false,
-        configFormat: 'json',
-      },
-      {
-        type: 'mcp-config',
-        locations: { global: '/home/cheta/.codex/mcp.json', project: '.codex/mcp.json' },
-        flat: true,
-        configFormat: 'json',
-      },
+      loc('skill', '~/.codex/skills', '.codex/skills', true, null, 'skills'),
+      loc('plugin', '~/.codex/plugins', '.codex/plugins', false, 'json', 'plugins'),
+      loc('mcp-config', '~/.codex/config.toml', '.codex/config.toml', true, 'codex-toml'),
+      loc('slash-command', '~/.codex/commands', '.codex/commands', false, 'markdown', 'commands'),
+      loc('output-style', '~/.codex/output-styles', '.codex/output-styles', false, 'markdown'),
+      loc('script', '~/.codex/scripts', '.codex/scripts', false, null, 'scripts'),
     ],
     capabilities: [
-      { type: 'skill', dialects: ['agent-md'] },
-      { type: 'mcp', dialects: ['single-server', 'multi-server'] },
-      { type: 'plugin', dialects: ['generic'] },
+      cap('skill', ['agent-md']),
+      cap('plugin', ['generic']),
+      cap('mcp', ['single-server', 'multi-server', 'codex-toml']),
+      cap('commands', ['claude']),
+      cap('output-style', ['generic']),
+      cap('scripts', ['bash', 'zsh', 'python', 'node', 'typescript']),
     ],
     deployment: { method: 'copy', crossDevice: true, priorStateBackup: true },
   },
   {
-    name: 'antigravity',
+    id: 'antigravity',
+    name: 'Antigravity',
+    version: 1,
+    guidanceFilename: 'AGENTS.md',
     artifactTypes: [
-      {
-        type: 'skill',
-        locations: { global: '/home/cheta/.antigravity/skills/', project: '.antigravity/skills/' },
-        flat: false,
-        configFormat: null,
-      },
-      {
-        type: 'mcp-config',
-        locations: {
-          global: '/home/cheta/.antigravity/servers.json',
-          project: '.antigravity/servers.json',
-        },
-        flat: true,
-        configFormat: 'json',
-      },
+      loc('skill', '~/.agents/skills', '.agents/skills', false, null, 'skills'),
+      loc('agent', '~/.agents/agents', '.agents/agents', false, 'yaml', 'agents'),
+      loc('hook', '~/.agents/hooks', '.agents/hooks', false, 'yaml', 'hooks'),
+      loc('mcp-config', '~/.agents/mcp_config.json', '.agents/mcp_config.json', true, 'antigravity-json'),
+      loc('slash-command', '~/.agents/commands', '.agents/commands', false, 'markdown', 'commands'),
+      loc('script', '~/.agents/scripts', '.agents/scripts', false, null, 'scripts'),
     ],
     capabilities: [
-      { type: 'skill', dialects: ['agent-md'] },
-      { type: 'mcp', dialects: ['single-server'] },
+      cap('skill', ['agent-md']),
+      cap('agent-config', ['generic']),
+      cap('hooks', ['antigravity']),
+      cap('mcp', ['single-server', 'antigravity-json']),
+      cap('commands', ['claude']),
+      cap('scripts', ['bash', 'zsh', 'python', 'node', 'typescript']),
     ],
     deployment: { method: 'link', crossDevice: false, priorStateBackup: true },
   },
   {
-    name: 'opencode',
+    id: 'opencode',
+    name: 'OpenCode',
+    version: 1,
+    guidanceFilename: 'AGENTS.md',
     artifactTypes: [
-      {
-        type: 'skill',
-        locations: { global: '/home/cheta/.opencode/skills/', project: '.opencode/skills/' },
-        flat: false,
-        configFormat: null,
-      },
-      {
-        type: 'plugin',
-        locations: { global: '/home/cheta/.opencode/plugins/', project: '.opencode/plugins/' },
-        flat: false,
-        configFormat: 'json',
-      },
+      loc('skill', '~/.config/opencode/skill', '.opencode/skill', false, null, 'skill'),
+      loc('agent', '~/.config/opencode/agent', '.opencode/agent', false, 'yaml', 'agent'),
+      loc('hook', '~/.config/opencode/hook', '.opencode/hook', false, 'yaml', 'hook'),
+      loc('mcp-config', '~/.config/opencode/opencode.json', '.opencode/opencode.json', true, 'opencode-json'),
+      loc('slash-command', '~/.config/opencode/command', '.opencode/command', false, 'markdown', 'command'),
     ],
     capabilities: [
-      { type: 'skill', dialects: ['agent-md'] },
-      { type: 'plugin', dialects: ['generic'] },
+      cap('skill', ['agent-md']),
+      cap('agent-config', ['generic']),
+      cap('hooks', ['opencode']),
+      cap('mcp', ['single-server', 'opencode-json']),
+      cap('commands', ['claude']),
     ],
     deployment: { method: 'copy', crossDevice: false, priorStateBackup: true },
   },
 ];
 
-// ─── Profile Registry ───────────────────────────────────────
-
 export class ProfileRegistry {
   private profiles = new Map<string, HarnessProfile>();
 
-  constructor() {
-    // Load built-in profiles
-    for (const p of BUILTIN_PROFILES) {
-      this.profiles.set(p.name, p);
+  constructor(options: ProfileRegistryOptions = {}) {
+    for (const profile of BUILTIN_PROFILES) {
+      this.profiles.set(profile.id, profile);
     }
 
-    // Load from profiles/ directory (project-level)
-    this.loadFromDir('profiles');
-
-    // Load from ~/.config/quartermaster/profiles/ (user-level overrides)
-    const home = process.env.HOME || process.env.USERPROFILE || '~';
-    this.loadFromDir(join(home, '.config', 'quartermaster', 'profiles'));
+    const dirs = [
+      ...(options.includeDefaultDirs === false ? [] : defaultProfileDirs()),
+      ...(options.profileDirs ?? []),
+    ];
+    for (const dir of dirs) this.loadFromDir(dir);
   }
 
-  /** List all loaded profile names. */
   listProfiles(): HarnessProfile[] {
     return Array.from(this.profiles.values());
   }
 
-  /** Get a profile by name. */
-  getProfile(name: string): HarnessProfile | null {
-    return this.profiles.get(name) ?? null;
+  getProfile(id: string): HarnessProfile | null {
+    return this.profiles.get(id) ?? null;
   }
 
-  /** Add or update a profile. */
   addProfile(profile: HarnessProfile): void {
-    const errors = validateProfile(profile);
-    if (errors.length > 0) {
-      throw new ProfileValidationFailed(errors.map((e) => `${e.field}: ${e.message}`).join('; '));
-    }
-    this.profiles.set(profile.name, profile);
+    assertValidProfile(profile);
+    this.profiles.set(profile.id, profile);
   }
 
-  /** Remove a profile. Built-in profiles cannot be removed. */
-  removeProfile(name: string): void {
-    if (BUILTIN_PROFILES.some((p) => p.name === name)) {
-      throw new ProfileError(`Cannot remove built-in profile '${name}'`);
+  removeProfile(id: string): void {
+    if (BUILTIN_PROFILES.some((profile) => profile.id === id)) {
+      throw new ProfileError(`cannot remove built-in profile '${id}'`);
     }
-    this.profiles.delete(name);
+    this.profiles.delete(id);
   }
 
-  // ── Internal ──────────────────────────────────────────────
-
-  private loadFromDir(dir: string): void {
+  loadFromDir(dir: string): void {
     if (!existsSync(dir)) return;
-
     let entries: string[];
     try {
       entries = readdirSync(dir);
@@ -202,105 +168,190 @@ export class ProfileRegistry {
     }
 
     for (const entry of entries) {
-      if (!entry.endsWith('.yaml') && !entry.endsWith('.yml')) continue;
-
+      if (!/\.(ya?ml|json)$/.test(entry)) continue;
       const filePath = join(dir, entry);
-      let parsed: Record<string, unknown>;
-      try {
-        const content = readFileSync(filePath, 'utf-8');
-        parsed = yaml.load(content) as Record<string, unknown>;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        throw new ProfileError(`YAML error in ${entry}: ${msg}`);
-      }
-
-      const profile = parseProfileYaml(parsed, entry);
-      this.profiles.set(profile.name, profile);
+      const raw = parseProfileFile(filePath);
+      const profile = normalizeProfile(raw, entry);
+      this.addProfile(profile);
     }
   }
 }
 
-// ─── Validation ─────────────────────────────────────────────
+export function loadBuiltInProfiles(): HarnessProfile[] {
+  return BUILTIN_PROFILES.map((profile) => structuredClone(profile));
+}
 
-function validateProfile(p: HarnessProfile): ProfileValidationIssue[] {
-  const errors: ProfileValidationIssue[] = [];
+export function loadProfileFromFile(filePath: string): HarnessProfile {
+  const raw = parseProfileFile(filePath);
+  return normalizeProfile(raw, filePath);
+}
 
-  if (!p.name) {
-    errors.push({ field: 'name', message: 'Profile name is required' });
+export function validateProfile(profile: HarnessProfile): ProfileValidationIssue[] {
+  const issues: ProfileValidationIssue[] = [];
+  if (!profile.id) issues.push(issue('id', 'profile id is required'));
+  if (!profile.name) issues.push(issue('name', 'profile name is required'));
+  if (!Number.isInteger(profile.version) || profile.version < 1) {
+    issues.push(issue('version', 'version must be a positive integer'));
   }
-
-  if (!p.artifactTypes || p.artifactTypes.length === 0) {
-    errors.push({
-      field: 'artifactTypes',
-      message: 'At least one artifact type location required',
-    });
+  if (!profile.guidanceFilename) {
+    issues.push(issue('guidanceFilename', 'guidance filename is required'));
   }
-
-  for (let i = 0; i < p.artifactTypes.length; i++) {
-    const at = p.artifactTypes[i]!;
-    if (!at.type) errors.push({ field: `artifactTypes[${i}].type`, message: 'Required' });
-    if (!at.locations?.global && !at.locations?.project) {
-      errors.push({
-        field: `artifactTypes[${i}].locations`,
-        message: 'At least one of global/project required',
-      });
-    }
-  }
-
-  if (!p.capabilities || p.capabilities.length === 0) {
-    errors.push({
-      field: 'capabilities',
-      message: 'At least one capability support entry required',
-    });
-  }
-
-  if (!p.deployment) {
-    errors.push({ field: 'deployment', message: 'Deployment config is required' });
+  if (!Array.isArray(profile.artifactTypes) || profile.artifactTypes.length === 0) {
+    issues.push(issue('artifactTypes', 'at least one artifact type location is required'));
   } else {
-    if (p.deployment.method !== 'link' && p.deployment.method !== 'copy') {
-      errors.push({ field: 'deployment.method', message: 'Must be "link" or "copy"' });
-    }
+    profile.artifactTypes.forEach((entry, i) => validateArtifactType(entry, i, issues));
   }
-
-  return errors;
+  if (!Array.isArray(profile.capabilities) || profile.capabilities.length === 0) {
+    issues.push(issue('capabilities', 'at least one capability entry is required'));
+  } else {
+    profile.capabilities.forEach((entry, i) => validateCapability(entry, i, issues));
+  }
+  if (!profile.deployment) {
+    issues.push(issue('deployment', 'deployment config is required'));
+  } else if (profile.deployment.method !== 'link' && profile.deployment.method !== 'copy') {
+    issues.push(issue('deployment.method', 'must be "link" or "copy"'));
+  }
+  return issues;
 }
 
-// ─── YAML Parsing ───────────────────────────────────────────
-
-function parseProfileYaml(raw: Record<string, unknown>, fileName: string): HarnessProfile {
-  const name = raw.name as string;
-  if (!name) {
-    throw new ProfileError(`Profile in ${fileName} missing required 'name' field`);
+function assertValidProfile(profile: HarnessProfile): void {
+  const issues = validateProfile(profile);
+  if (issues.length > 0) {
+    throw new ProfileValidationFailed(issues.map((i) => `${i.field}: ${i.message}`).join('; '));
   }
+}
 
-  const rawTypes = (raw.artifactTypes as Array<Record<string, unknown>>) ?? [];
-  const artifactTypes: ArtifactTypeLocation[] = rawTypes.map((t: Record<string, unknown>) => ({
-    type: t.type as ArtifactType,
-    locations: {
-      global: (t.locations as Record<string, string>)?.global ?? '',
-      project: (t.locations as Record<string, string>)?.project ?? '',
+function normalizeProfile(raw: Record<string, unknown>, fileName: string): HarnessProfile {
+  const id = stringField(raw.id) ?? stringField(raw.name)?.toLowerCase().replace(/\s+/g, '-');
+  if (!id) throw new ProfileError(`profile in ${fileName} missing required id/name`);
+
+  const rawTypes = arrayField(raw.artifactTypes) ?? arrayField(raw.types) ?? [];
+  const artifactTypes = rawTypes.map((entry, i) => normalizeArtifactType(entry, i));
+  const capabilities = (arrayField(raw.capabilities) ?? []).map((entry, i) => normalizeCapability(entry, i));
+  const dep = objectField(raw.deployment);
+  const profile: HarnessProfile = {
+    id,
+    name: stringField(raw.name) ?? id,
+    version: numberField(raw.version) ?? 1,
+    guidanceFilename: stringField(raw.guidanceFilename) ?? (id === 'claude-code' ? 'CLAUDE.md' : 'AGENTS.md'),
+    artifactTypes,
+    capabilities,
+    deployment: {
+      method: dep?.method === 'copy' ? 'copy' : 'link',
+      crossDevice: booleanField(dep?.crossDevice) ?? false,
+      priorStateBackup: booleanField(dep?.priorStateBackup) ?? true,
     },
-    flat: (t.flat as boolean) ?? false,
-    configFormat: (t.configFormat as string | null) ?? null,
-  }));
-
-  const rawCaps = (raw.capabilities as Array<Record<string, unknown>>) ?? [];
-  const capabilities: CapabilitySupport[] = rawCaps.map((c: Record<string, unknown>) => ({
-    type: c.type as string,
-    dialects: (c.dialects as string[]) ?? [],
-  }));
-
-  const dep = raw.deployment as Record<string, unknown> | undefined;
-  const deployment: DeploymentConfig = {
-    method: (dep?.method as 'link' | 'copy') ?? 'link',
-    crossDevice: (dep?.crossDevice as boolean) ?? false,
-    priorStateBackup: (dep?.priorStateBackup as boolean) ?? true,
   };
-
-  return { name, artifactTypes, capabilities, deployment };
+  assertValidProfile(profile);
+  return profile;
 }
 
-// ─── Error Types ────────────────────────────────────────────
+function normalizeArtifactType(raw: unknown, index: number): ArtifactTypeLocation {
+  const obj = objectField(raw);
+  if (!obj) throw new ProfileError(`artifactTypes[${index}] must be an object`);
+  const locations = objectField(obj.locations);
+  const dirname = stringField(obj.dirname);
+  return {
+    type: obj.type as ArtifactType,
+    locations: {
+      global: stringField(locations?.global) ?? '',
+      project: stringField(locations?.project) ?? '',
+    },
+    flat: booleanField(obj.flat) ?? false,
+    configFormat: stringField(obj.configFormat) ?? null,
+    ...(dirname ? { dirname } : {}),
+  };
+}
+
+function normalizeCapability(raw: unknown, index: number): CapabilitySupport {
+  const obj = objectField(raw);
+  if (!obj) throw new ProfileError(`capabilities[${index}] must be an object`);
+  return {
+    type: stringField(obj.type) ?? '',
+    dialects: arrayField(obj.dialects)?.map((value) => String(value)) ?? [],
+  };
+}
+
+function validateArtifactType(
+  entry: ArtifactTypeLocation,
+  index: number,
+  issues: ProfileValidationIssue[],
+): void {
+  if (!entry.type) issues.push(issue(`artifactTypes[${index}].type`, 'type is required'));
+  if (!entry.locations?.global && !entry.locations?.project) {
+    issues.push(issue(`artifactTypes[${index}].locations`, 'global or project location is required'));
+  }
+  if (typeof entry.flat !== 'boolean') {
+    issues.push(issue(`artifactTypes[${index}].flat`, 'flat must be boolean'));
+  }
+}
+
+function validateCapability(
+  entry: CapabilitySupport,
+  index: number,
+  issues: ProfileValidationIssue[],
+): void {
+  if (!entry.type) issues.push(issue(`capabilities[${index}].type`, 'type is required'));
+  if (!Array.isArray(entry.dialects)) {
+    issues.push(issue(`capabilities[${index}].dialects`, 'dialects must be a list'));
+  }
+}
+
+function parseProfileFile(filePath: string): Record<string, unknown> {
+  const raw = readFileSync(filePath, 'utf8');
+  try {
+    const parsed = filePath.endsWith('.json') ? JSON.parse(raw) : yaml.load(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+  } catch (err) {
+    throw new ProfileError(`${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function defaultProfileDirs(): string[] {
+  const home = process.env.HOME || process.env.USERPROFILE || '~';
+  return ['profiles', join(home, '.config', 'quartermaster', 'profiles')];
+}
+
+function loc(
+  type: ArtifactType,
+  global: string,
+  project: string,
+  flat: boolean,
+  configFormat: string | null,
+  dirname?: string,
+): ArtifactTypeLocation {
+  return { type, locations: { global, project }, flat, configFormat, ...(dirname ? { dirname } : {}) };
+}
+
+function cap(type: string, dialects: string[]): CapabilitySupport {
+  return { type, dialects };
+}
+
+function issue(field: string, message: string): ProfileValidationIssue {
+  return { field, message };
+}
+
+function objectField(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function arrayField(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null;
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function numberField(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
+function booleanField(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
 
 export class ProfileError extends Error {
   constructor(message: string) {

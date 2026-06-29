@@ -6,8 +6,12 @@
 
 import type { Artifact, ArtifactSource } from '@core/types';
 import type { Repository } from '@storage/repository';
+import { Repository as SqliteRepository } from '@storage/repository';
+import { promises as fs } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
 import { gitLsRemote } from './git';
-import type { ImportManager } from './importers';
+import { ImportManager } from './importers';
 
 export interface SyncReport {
   unchanged: string[];
@@ -26,6 +30,10 @@ export function isLocallyModified(artifact: Artifact): boolean {
   return artifact.localModifications === true;
 }
 
+export function isPinned(artifact: Artifact): boolean {
+  return Boolean(artifact.pinnedRevision || artifact.source?.pinnedRevision);
+}
+
 /**
  * Read-only upstream currency check (FR-012). Classifies each remote artifact as
  * unchanged / ahead / conflict / pinned. Performs NO disk or catalog writes.
@@ -35,11 +43,16 @@ export async function checkUpstreams(repo: Repository): Promise<SyncReport> {
 
   for (const artifact of repo.listArtifacts()) {
     try {
-      if (!artifact.source || artifact.source.kind === 'local' || artifact.source.kind === 'marketplace') {
+      if (
+        !artifact.source ||
+        artifact.source.kind === 'local' ||
+        artifact.source.kind === 'self' ||
+        artifact.source.kind === 'marketplace'
+      ) {
         report.unchanged.push(artifact.id);
         continue;
       }
-      if (artifact.pinnedRevision) {
+      if (isPinned(artifact)) {
         report.pinned.push(artifact.id);
         continue;
       }
@@ -72,7 +85,7 @@ export async function checkUpstreams(repo: Repository): Promise<SyncReport> {
 
 export async function syncUpstreams(
   repo: Repository,
-  importer: ImportManager,
+  _importer: ImportManager,
   opts?: { confirm?: boolean },
 ): Promise<SyncReport> {
   const artifacts = repo.listArtifacts();
@@ -87,12 +100,17 @@ export async function syncUpstreams(
 
   for (const artifact of artifacts) {
     try {
-      if (!artifact.source || artifact.source.kind === 'local') {
+      if (
+        !artifact.source ||
+        artifact.source.kind === 'local' ||
+        artifact.source.kind === 'self' ||
+        artifact.source.kind === 'marketplace'
+      ) {
         report.unchanged.push(artifact.id);
         continue;
       }
 
-      if (artifact.pinnedRevision) {
+      if (isPinned(artifact)) {
         report.pinned.push(artifact.id);
         continue;
       }
@@ -126,17 +144,7 @@ export async function syncUpstreams(
         continue;
       }
 
-      // Auto-update: re-import
-      await importer.importFromSource({
-        source: artifact.source,
-        targetDir: '/tmp/quartermaster-sync',
-      });
-
-      const updatedArtifact: Artifact = {
-        ...artifact,
-        metadata: { ...artifact.metadata, gitRef: upstreamRef },
-        updatedAt: new Date().toISOString(),
-      };
+      const updatedArtifact = await refreshArtifactFromSource(artifact, upstreamRef);
       repo.upsertArtifact(updatedArtifact);
       report.updated.push(artifact.id);
     } catch (err) {
@@ -148,6 +156,65 @@ export async function syncUpstreams(
   return report;
 }
 
+async function refreshArtifactFromSource(artifact: Artifact, upstreamRef: string): Promise<Artifact> {
+  const tempRoot = await fs.mkdtemp(join(tmpdir(), 'quartermaster-sync-'));
+  const tempRepo = new SqliteRepository({ dbPath: join(tempRoot, 'catalog.sqlite') });
+  try {
+    const manager = new ImportManager(tempRepo);
+    const result = await manager.importFromSource({
+      source: artifact.source,
+      targetDir: join(tempRoot, 'import'),
+    });
+    const replacement = findReplacementArtifact(artifact, result.added);
+    if (!replacement) {
+      throw new Error(`could not find refreshed artifact matching ${artifact.name}`);
+    }
+
+    await fs.mkdir(dirname(artifact.path), { recursive: true });
+    await fs.copyFile(replacement.path, artifact.path);
+
+    return {
+      ...artifact,
+      id: replacement.id,
+      hash: replacement.hash,
+      size: replacement.size,
+      metadata: {
+        ...replacement.metadata,
+        importedHash: replacement.hash,
+        gitRef: upstreamRef,
+      },
+      source: {
+        ...artifact.source,
+        importedRevision: upstreamRef,
+      } as ArtifactSource,
+      provenance: replacement.provenance,
+      localModifications: false,
+      updatedAt: new Date().toISOString(),
+    };
+  } finally {
+    tempRepo.close();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+}
+
+function findReplacementArtifact(original: Artifact, candidates: Artifact[]): Artifact | null {
+  const originalName = basename(original.path);
+  return (
+    candidates.find(
+      (candidate) =>
+        candidate.type === original.type &&
+        candidate.organizationalPath === original.organizationalPath &&
+        basename(candidate.path) === originalName,
+    ) ??
+    candidates.find((candidate) => candidate.type === original.type && candidate.name === original.name) ??
+    (candidates.filter((candidate) => candidate.type === original.type).length === 1
+      ? candidates.find((candidate) => candidate.type === original.type)
+      : null) ??
+    null
+  );
+}
+
+
 /**
  * Resolve the current upstream revision for a source (FR-012) via `git ls-remote`
  * — no API token, no rate limit, uniform across git hosts. `marketplace`/`local`
@@ -156,6 +223,8 @@ export async function syncUpstreams(
 async function fetchUpstreamRef(source: ArtifactSource): Promise<string | null> {
   switch (source.kind) {
     case 'git':
+      return gitLsRemote(source.url, source.ref || 'HEAD');
+    case 'git_subdir':
       return gitLsRemote(source.url, source.ref || 'HEAD');
     case 'github':
       return gitLsRemote(`https://github.com/${source.owner}/${source.repo}`, source.ref || 'HEAD');

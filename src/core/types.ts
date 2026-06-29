@@ -46,14 +46,48 @@ export const ARTIFACT_TYPES: readonly ArtifactType[] = [
  *
  * - `github`: Fetched from a GitHub repository archive
  * - `git`: Cloned from a generic git remote
+ * - `git_subdir`: Cloned from a subdirectory of a git remote
  * - `marketplace`: Downloaded from a marketplace URL
  * - `local`: Copied from a local filesystem path
+ * - `self`: Authored directly in the local library
  */
 export type ArtifactSource =
-  | { kind: 'github'; owner: string; repo: string; ref: string; subdir?: string }
-  | { kind: 'git'; url: string; ref: string }
-  | { kind: 'marketplace'; url: string }
-  | { kind: 'local'; path: string };
+  | {
+      kind: 'github';
+      owner: string;
+      repo: string;
+      ref: string;
+      subdir?: string;
+      importedRevision?: string;
+      pinnedRevision?: string;
+      trusted?: boolean;
+    }
+  | {
+      kind: 'git';
+      url: string;
+      ref: string;
+      importedRevision?: string;
+      pinnedRevision?: string;
+      trusted?: boolean;
+    }
+  | {
+      kind: 'git_subdir';
+      url: string;
+      ref: string;
+      subdir: string;
+      importedRevision?: string;
+      pinnedRevision?: string;
+      trusted?: boolean;
+    }
+  | {
+      kind: 'marketplace';
+      url: string;
+      importedRevision?: string;
+      pinnedRevision?: string;
+      trusted?: boolean;
+    }
+  | { kind: 'local'; path: string; importedRevision?: string; pinnedRevision?: string; trusted?: boolean }
+  | { kind: 'self'; path: string; importedRevision?: string; pinnedRevision?: string; trusted?: boolean };
 
 // ─── Capability & Dialect ───────────────────────────────────
 
@@ -319,6 +353,8 @@ export interface ArtifactTypeLocation {
   flat: boolean;
   /** Expected config format (null if not a config file). */
   configFormat: string | null;
+  /** Optional conventional directory/file name for this artifact type. */
+  dirname?: string;
 }
 
 /**
@@ -344,7 +380,10 @@ export interface DeploymentConfig {
  * environment's layout, capabilities, and deployment rules.
  */
 export interface HarnessProfile {
+  id: string;
   name: string;
+  version: number;
+  guidanceFilename: string;
   artifactTypes: ArtifactTypeLocation[];
   capabilities: CapabilitySupport[];
   deployment: DeploymentConfig;

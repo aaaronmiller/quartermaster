@@ -33,6 +33,7 @@ export class TransformRegistry {
   constructor() {
     // Register built-in transforms
     this.register(flattenTransform);
+    this.register(configTranslateTransform);
     this.register(translateJsonToTomlTransform);
     this.register(translateTomlToJsonTransform);
   }
@@ -91,6 +92,20 @@ export const flattenTransform: Transform = {
       content: '', // content will be read from source
       targetPath: `${context.harnessPath}/${flatName}`,
       transformName: 'flatten',
+    };
+  },
+};
+
+export const configTranslateTransform: Transform = {
+  name: 'config-translate',
+  sourceType: 'mcp-config',
+
+  async apply(input: Artifact, context: TransformContext): Promise<TransformedArtifact> {
+    return {
+      original: input,
+      content: '',
+      targetPath: `${context.harnessPath}/${input.path.split('/').pop() ?? input.id}`,
+      transformName: 'config-translate',
     };
   },
 };

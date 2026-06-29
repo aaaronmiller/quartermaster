@@ -3,7 +3,9 @@
 // Pure functions computing verdicts for (artifact, harness) pairs.
 // ─────────────────────────────────────────────────────────────
 
-import type { Artifact, Capability, HarnessProfile } from '@core/types';
+import type { Artifact, HarnessProfile } from '@core/types';
+import type { Repository } from '@storage/repository';
+import { TransformRegistry } from './transforms';
 
 export type VerdictStatus = 'deployable' | 'incompatible' | 'transform';
 
@@ -20,6 +22,11 @@ export interface VerdictOverride {
   note: string;
 }
 
+export interface VerdictOverrideRecord extends VerdictOverride {
+  artifactId: string;
+  harness: string;
+}
+
 /**
  * Compute a single compatibility verdict for an artifact/harness pair.
  * Pure function: no side effects, deterministic output for same inputs.
@@ -33,11 +40,11 @@ export function computeVerdict(
   if (overrides) {
     const artifactOverrides = overrides.get(artifact.id);
     if (artifactOverrides) {
-      const override = artifactOverrides.get(profile.name);
+      const override = artifactOverrides.get(profile.id);
       if (override) {
         return {
           artifactId: artifact.id,
-          harness: profile.name,
+          harness: profile.id,
           verdict: override.status,
           reason: `manual override: ${override.note}`,
         };
@@ -50,54 +57,80 @@ export function computeVerdict(
   if (!typeLocation) {
     return {
       artifactId: artifact.id,
-      harness: profile.name,
+      harness: profile.id,
       verdict: 'incompatible',
-      reason: `type '${artifact.type}' not supported by harness '${profile.name}'`,
+      reason: `type '${artifact.type}' not supported by harness '${profile.id}'`,
     };
   }
 
   // 2. Capability support check
+  const transforms = new TransformRegistry();
   for (const cap of artifact.capabilities) {
     const support = profile.capabilities.find((c) => c.type === cap.type);
     if (!support) {
       return {
         artifactId: artifact.id,
-        harness: profile.name,
+        harness: profile.id,
         verdict: 'incompatible',
-        reason: `capability '${cap.type}' not supported by harness '${profile.name}'`,
+        reason: `capability '${cap.type}' not supported by harness '${profile.id}'`,
       };
     }
 
     // 3. Dialect match check
     if (cap.dialect && support.dialects.length > 0) {
       if (!support.dialects.includes(cap.dialect)) {
-        // Check if a transform is available (handled by transform registry in production)
+        const transform = transforms.findTransform(artifact.type, cap.dialect, support.dialects[0] ?? '');
+        if (transform) {
+          return {
+            artifactId: artifact.id,
+            harness: profile.id,
+            verdict: 'transform',
+            reason: `dialect '${cap.dialect}' for capability '${cap.type}' requires transform '${transform.name}'`,
+            transformation: transform.name,
+          };
+        }
         return {
           artifactId: artifact.id,
-          harness: profile.name,
-          verdict: 'transform',
-          reason: `dialect '${cap.dialect}' for capability '${cap.type}' requires transform`,
-          transformation: `translate-${cap.type}-${cap.dialect}-to-${support.dialects[0] ?? 'generic'}`,
+          harness: profile.id,
+          verdict: 'incompatible',
+          reason: `dialect '${cap.dialect}' for capability '${cap.type}' is not supported by harness '${profile.id}'`,
         };
       }
     }
   }
 
-  // 4. Flatten check
-  if (profile.deployment.method === 'copy' && typeLocation.flat) {
+  // 4. Config format translation check
+  const sourceConfigFormat = artifact.metadata?.configFormat as string | undefined;
+  if (
+    artifact.type === 'mcp-config' &&
+    sourceConfigFormat &&
+    typeLocation.configFormat &&
+    sourceConfigFormat !== typeLocation.configFormat
+  ) {
     return {
       artifactId: artifact.id,
-      harness: profile.name,
+      harness: profile.id,
+      verdict: 'transform',
+      reason: `config format '${sourceConfigFormat}' must be translated to '${typeLocation.configFormat}'`,
+      transformation: 'config-translate',
+    };
+  }
+
+  // 5. Flatten check
+  if (typeLocation.flat && artifact.organizationalPath !== '.') {
+    return {
+      artifactId: artifact.id,
+      harness: profile.id,
       verdict: 'transform',
       reason: 'harness requires flat layout, artifact has nested path',
       transformation: 'flatten',
     };
   }
 
-  // 5. All checks passed
+  // 6. All checks passed
   return {
     artifactId: artifact.id,
-    harness: profile.name,
+    harness: profile.id,
     verdict: 'deployable',
     reason: 'artifact is compatible with harness',
   };
@@ -145,4 +178,27 @@ export function summarizeMatrix(matrix: VerdictResult[][]): {
     transform,
     total: deployable + incompatible + transform,
   };
+}
+
+export function saveVerdictOverride(repo: Repository, record: VerdictOverrideRecord): void {
+  repo.db
+    .prepare(
+      `INSERT INTO verdict_overrides (artifactId, harness, status, note, updatedAt)
+       VALUES ($artifactId, $harness, $status, $note, $updatedAt)
+       ON CONFLICT(artifactId, harness) DO UPDATE SET
+         status = $status, note = $note, updatedAt = $updatedAt`,
+    )
+    .run(record.artifactId, record.harness, record.status, record.note, new Date().toISOString());
+}
+
+export function loadVerdictOverrides(repo: Repository): Map<string, Map<string, VerdictOverride>> {
+  const rows = repo.db
+    .prepare('SELECT artifactId, harness, status, note FROM verdict_overrides')
+    .all() as Array<{ artifactId: string; harness: string; status: VerdictStatus; note: string }>;
+  const overrides = new Map<string, Map<string, VerdictOverride>>();
+  for (const row of rows) {
+    if (!overrides.has(row.artifactId)) overrides.set(row.artifactId, new Map());
+    overrides.get(row.artifactId)!.set(row.harness, { status: row.status, note: row.note });
+  }
+  return overrides;
 }

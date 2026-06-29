@@ -25,10 +25,15 @@ export async function gitClone(
   dir: string,
   opts?: { shallow?: boolean; branch?: string },
 ): Promise<void> {
+  // Guard against argv flag smuggling: a source URL/ref/branch beginning with
+  // '-' would be interpreted by git as an option (e.g. --upload-pack=...).
+  assertNotFlag(url, 'repository url');
+  if (opts?.branch) assertNotFlag(opts.branch, 'branch');
+
   const args = ['clone'];
   if (opts?.shallow) args.push('--depth', '1');
   if (opts?.branch) args.push('--branch', opts.branch);
-  args.push(url, dir);
+  args.push('--', url, dir);
 
   await runGit(args, { timeout: 60000 });
 }
@@ -53,6 +58,7 @@ export async function gitLog(dir: string, since?: string): Promise<GitLogEntry[]
 }
 
 export async function gitCheckout(dir: string, ref: string): Promise<void> {
+  assertNotFlag(ref, 'ref');
   await runGit(['-C', dir, 'checkout', ref], { timeout: 10000 });
 }
 
@@ -62,8 +68,10 @@ export async function gitCheckout(dir: string, ref: string): Promise<void> {
  * Returns null on failure (offline, unreachable, unknown ref).
  */
 export async function gitLsRemote(url: string, ref = 'HEAD'): Promise<string | null> {
+  assertNotFlag(url, 'repository url');
+  assertNotFlag(ref, 'ref');
   try {
-    const { stdout } = await runGit(['ls-remote', url, ref], { timeout: 20000 });
+    const { stdout } = await runGit(['ls-remote', '--', url, ref], { timeout: 20000 });
     const line = stdout.trim().split('\n')[0];
     if (!line) return null;
     const sha = line.split(/\s+/)[0];
@@ -90,6 +98,12 @@ export async function gitCurrentBranch(dir: string): Promise<string | null> {
     return stdout.trim() || null;
   } catch {
     return null;
+  }
+}
+
+function assertNotFlag(value: string, label: string): void {
+  if (value.startsWith('-')) {
+    throw new GitArgumentError(`${label} must not start with '-'`);
   }
 }
 
@@ -145,6 +159,13 @@ export class GitTimeoutError extends Error {
   constructor(op: string) {
     super(`git ${op} timed out`);
     this.name = 'GitTimeoutError';
+  }
+}
+
+export class GitArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GitArgumentError';
   }
 }
 

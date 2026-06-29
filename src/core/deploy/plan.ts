@@ -76,7 +76,7 @@ export function compilePlan(
   }
 
   return {
-    harness: profile.name,
+    harness: profile.id,
     operations,
     excluded,
   };

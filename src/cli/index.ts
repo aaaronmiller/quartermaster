@@ -5,9 +5,13 @@
 // returns an honest "not implemented" envelope (never a fake success).
 // ─────────────────────────────────────────────────────────────
 
+import { auditCommand } from './commands/audit';
 import { listCommand } from './commands/catalog';
 import { configCommand } from './commands/config';
+import { importCommand } from './commands/import';
+import { profileCommand } from './commands/profile';
 import { scanCommand } from './commands/scan';
+import { pinCommand, syncCommand, unpinCommand } from './commands/sync';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
 
 const VERSION = '3.0.0';
@@ -27,14 +31,16 @@ const COMMANDS: Record<string, CommandSpec> = {
   scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006', handler: scanCommand },
   list: { summary: 'List/filter catalog (by type, capability, source, path)', fr: 'FR-006', handler: listCommand },
   search: { summary: 'Free-text search the catalog', fr: 'FR-006', handler: listCommand },
-  import: { summary: 'Import artifacts from a source', fr: 'FR-010..014' },
-  sync: { summary: 'Check or update upstreams', fr: 'FR-012..014' },
-  audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034' },
+  import: { summary: 'Import artifacts from a source', fr: 'FR-010..014', handler: importCommand },
+  sync: { summary: 'Check or update upstreams', fr: 'FR-012..014', handler: syncCommand },
+  pin: { summary: 'Pin an artifact to a revision', fr: 'FR-014', handler: pinCommand },
+  unpin: { summary: 'Remove an artifact revision pin', fr: 'FR-014', handler: unpinCommand },
+  audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034', handler: auditCommand },
   plan: { summary: 'Dry-run a deployment plan', fr: 'FR-040,045' },
   deploy: { summary: 'Apply a deployment plan', fr: 'FR-040..048' },
   rollback: { summary: 'Reverse a recorded deployment', fr: 'FR-046' },
   status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061' },
-  profile: { summary: 'Manage harness profiles', fr: 'FR-020..023' },
+  profile: { summary: 'Manage harness profiles', fr: 'FR-020..023', handler: profileCommand },
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050' },
   loadout: { summary: 'Manage loadouts', fr: 'FR-090..094' },
   pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },

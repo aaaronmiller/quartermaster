@@ -98,6 +98,24 @@ export const MIGRATIONS: Migration[] = [
       DROP INDEX IF EXISTS idx_artifacts_orgpath;
     `,
   },
+  {
+    version: 3,
+    name: 'add-verdict-overrides',
+    up: `
+      CREATE TABLE IF NOT EXISTS verdict_overrides (
+        artifactId TEXT NOT NULL,
+        harness    TEXT NOT NULL,
+        status     TEXT NOT NULL,
+        note       TEXT NOT NULL,
+        updatedAt  TEXT NOT NULL,
+        PRIMARY KEY (artifactId, harness)
+      );
+      CREATE INDEX IF NOT EXISTS idx_verdict_overrides_harness ON verdict_overrides(harness);
+    `,
+    down: `
+      DROP TABLE IF EXISTS verdict_overrides;
+    `,
+  },
 ];
 
 const CURRENT_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

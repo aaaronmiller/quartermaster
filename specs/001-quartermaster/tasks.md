@@ -123,17 +123,17 @@ Depends on: Phase 0. The catalog is the spine everything else reads.
 Depends on: Phase 1. Records where artifacts come from and keeps them current.
 
 ### FR-010 — Record provenance for every imported artifact
-- [ ] T043 [FR-010] Confirm Source record fields (kind, reference, importedRevision, pin, trusted) — File: src/core/types.ts · Verify: Source type matches spec §4
-- [ ] T044 [FR-010] Persist source record on every import; mark self-authored as locally originated — File: src/core/sources/importers.ts · Verify: imported artifact has resolvable source; self-authored flagged local
-- [ ] T045 [FR-010] Test: every imported fixture has a source record — File: tests/integration/sync.test.ts · Verify: `bun test sync` covers provenance
+- [x] T043 [FR-010] Confirm Source record fields (kind, reference, importedRevision, pin, trusted) — File: src/core/types.ts · Verify ✅: `ArtifactSource` covers github/git/git_subdir/marketplace/local/self with reference fields, `importedRevision`, `pinnedRevision`, and `trusted`; `bun run typecheck` green.
+- [x] T044 [FR-010] Persist source record on every import; mark self-authored as locally originated — File: src/core/sources/importers.ts · Verify ✅: imports overwrite scanned local source with real source + provenance + `importedRevision`/`importedHash`; `self` is modeled as local-originated and non-importable.
+- [x] T045 [FR-010] Test: every imported fixture has a source record — File: tests/integration/sync.test.ts · Verify ✅: `bun test tests/integration/sync.test.ts` covers git, git_subdir, marketplace, and local provenance.
 
 ### FR-011 — Import from git repo, git subdir, marketplace, local path
-- [ ] T046 [FR-011] Confirm git clone/import path in `git.ts` + `importers.ts` — File: src/core/sources/git.ts · Verify: import from a local git fixture succeeds
-- [ ] T047 [FR-011] Implement git-subdirectory import (sparse/subtree) — File: src/core/sources/importers.ts · Verify: subdir import catalogs only that subdir
-- [ ] T048 [FR-011] Implement marketplace entry import — File: src/core/sources/importers.ts · Verify: marketplace fixture imports with correct source kind
-- [ ] T049 [FR-011] Implement local-path import — File: src/core/sources/importers.ts · Verify: local path import produces local source record
-- [ ] T050 [FR-011] Wire `qm import <source>` with kind auto-detect + flag override — File: src/cli/commands/import.ts · Verify: all four source forms import via CLI
-- [ ] T051 [FR-011] Integration test: four source forms → correct source records — File: tests/integration/sync.test.ts · Verify: `bun test sync` green
+- [x] T046 [FR-011] Confirm git clone/import path in `git.ts` + `importers.ts` — File: src/core/sources/git.ts · Verify ✅: local git fixture import succeeds and records git source/revision; argv flag-smuggling guard added for git URL/ref/branch.
+- [x] T047 [FR-011] Implement git-subdirectory import (sparse/subtree) — File: src/core/sources/importers.ts · Verify ✅: local git subdir import catalogs only the `plugins` subdir.
+- [x] T048 [FR-011] Implement marketplace entry import — File: src/core/sources/importers.ts · Verify ✅: deterministic `file://` marketplace fixture imports with source kind `marketplace`.
+- [x] T049 [FR-011] Implement local-path import — File: src/core/sources/importers.ts · Verify ✅: local path import produces source kind `local`.
+- [x] T050 [FR-011] Wire `qm import <source>` with kind auto-detect + flag override — File: src/cli/commands/import.ts · Verify ✅: CLI imports git, git_subdir, marketplace, and local forms with `--json`; kind auto-detect + `--kind` override covered.
+- [x] T051 [FR-011] Integration test: four source forms → correct source records — File: tests/integration/sync.test.ts · Verify ✅: `bun test tests/integration/sync.test.ts` green (6/6).
 
 ### FR-012 — Check upstream currency: unchanged / ahead / conflict
 > ⚠ Confirmed unimplemented today (`sync.ts:98-104`, `git.ts:64/73` all return null). The conflict *model* is undecided, not just unwritten.
@@ -141,21 +141,21 @@ Depends on: Phase 1. Records where artifacts come from and keeps them current.
 - [x] T052 [FR-012] Implement `fetchUpstreamRef` for git — File: src/core/sources/sync.ts, git.ts · Verify ✅: `gitLsRemote` resolves a local repo HEAD to its SHA (test). ⚠ Also fixed a pre-existing bug: `runGit`↔`isGitAvailable` infinite recursion made ALL git ops silently fail.
 - [x] T053 [FR-012] Implement `fetchUpstreamRef` for github — File: src/core/sources/sync.ts · Verify ✅: github resolved via `git ls-remote https://github.com/{owner}/{repo}` (no API token / rate limit, per spike). marketplace/local have no upstream ref.
 - [x] T054 [FR-012] Classify unchanged / ahead / conflict — File: src/core/sources/sync.ts · Verify ✅: `checkUpstreams` (read-only) test asserts all three states.
-- [~] T055 [FR-012] Detect local modification via import hash vs current content — File: src/core/sources/sync.ts · `isLocallyModified` (hash vs `metadata.importedHash`) DONE + tested. Storing `importedHash` at import time is pending in importers.ts (T044).
-- [ ] T056 [FR-012] Wire `qm sync --check` (report only) — File: src/cli/commands/sync.ts · Pending command wiring (checkUpstreams ready).
+- [x] T055 [FR-012] Detect local modification via import hash vs current content — File: src/core/sources/sync.ts, src/core/sources/importers.ts · Verify ✅: `isLocallyModified` compares `hash` vs `metadata.importedHash`; import stores `importedHash` + `gitRef`; `bun test tests/integration/sync.test.ts` green.
+- [x] T056 [FR-012] Wire `qm sync --check` (report only) — File: src/cli/commands/sync.ts · Verify ✅: `qm sync --check --json` exercised in `bun test tests/integration/sync.test.ts`; report-only path returns upstream status without writes.
 - [x] T057 [FR-012] Test the unchanged/ahead/conflict scenario — File: tests/integration/sync.test.ts · Verify ✅: rewritten against real API with a local git repo; 2 tests green.
 
 ### FR-013 — Update clean upstreams; never silently overwrite local edits
-- [ ] T058 [FR-013] Update artifacts with advanced upstream AND no local mod — File: src/core/sources/sync.ts · Verify: clean artifact updated to new revision
+- [x] T058 [FR-013] Update artifacts with advanced upstream AND no local mod — File: src/core/sources/sync.ts · Verify ✅: clean local git fixture sync copies new upstream content into the library file and updates `gitRef`/`importedHash`; `bun test tests/integration/sync.test.ts` green.
 - [x] T059 [FR-013] Block overwrite of locally modified artifacts without `--confirm` — File: src/core/sources/sync.ts · Verify ✅: `syncUpstreams` reports modified+advanced as conflict and skips unless `opts.confirm`; never silently overwrites.
-- [ ] T060 [FR-013] Wire `qm sync` + `qm sync --confirm` — File: src/cli/commands/sync.ts · Verify: confirm flag applies overwrite, default does not
-- [ ] T061 [FR-013] Test: locally modified never silently overwritten — File: tests/integration/sync.test.ts · Verify: assertion passes
+- [x] T060 [FR-013] Wire `qm sync` + `qm sync --confirm` — File: src/cli/commands/sync.ts · Verify ✅: CLI test proves default reports conflict and leaves local edit; `--confirm` overwrites with upstream content.
+- [x] T061 [FR-013] Test: locally modified never silently overwritten — File: tests/integration/sync.test.ts · Verify ✅: local edit reports conflict and file content remains unchanged without confirm.
 
 ### FR-014 — Pin artifact/source to a revision
-- [ ] T062 [FR-014] Add pin state + pinned revision to source/artifact — File: src/core/types.ts · Verify: pin fields present
-- [ ] T063 [FR-014] Sync skips pinned artifacts/sources — File: src/core/sources/sync.ts · Verify: pinned artifact stays at pinned revision across sync
-- [ ] T064 [FR-014] Wire `qm pin <artifact> <rev>` / `qm unpin` — File: src/cli/commands/sync.ts · Verify: pin then sync = no advance; unpin then sync = advances
-- [ ] T065 [FR-014] Test pin persistence across syncs — File: tests/integration/sync.test.ts · Verify: assertion passes
+- [x] T062 [FR-014] Add pin state + pinned revision to source/artifact — File: src/core/types.ts · Verify ✅: `Artifact.pinnedRevision` and every `ArtifactSource` variant include `pinnedRevision`; `bun run typecheck` green.
+- [x] T063 [FR-014] Sync skips pinned artifacts/sources — File: src/core/sources/sync.ts · Verify ✅: `isPinned` checks artifact + source pin state; pinned artifact remains unchanged across sync.
+- [x] T064 [FR-014] Wire `qm pin <artifact> <rev>` / `qm unpin` — File: src/cli/commands/sync.ts · Verify ✅: CLI pin/unpin exercised in integration test.
+- [x] T065 [FR-014] Test pin persistence across syncs — File: tests/integration/sync.test.ts · Verify ✅: pin → sync skips; unpin → sync advances; `bun test tests/integration/sync.test.ts` green (10/10).
 
 ---
 
@@ -163,26 +163,26 @@ Depends on: Phase 1. Records where artifacts come from and keeps them current.
 Depends on: Phase 0 (types). Profiles are data; audit & deploy must need no harness-specific code.
 
 ### FR-020 — Declarative profile schema
-- [ ] T066 [FR-020] Audit profile schema: types, capabilities, per-type global+project paths, flat flag, config format, guidance filename — File: src/core/profiles/profile-registry.ts · Verify: schema has every field in FR-020/spec §4
-- [ ] T067 [FR-020] Add JSON-schema/validator for profiles (reject malformed) — File: src/core/profiles/profile-registry.ts · Verify: malformed profile rejected with reason
-- [ ] T068 [FR-020 | NFR-040] Confirm audit/deploy read profile data only (no per-harness branches) — File: src/core/audit/auditor.ts · Verify: grep shows no hardcoded harness names in engines
-- [ ] T069 [FR-020] Unit test: a profile fully drives audit with no code change — File: tests/unit/profile-schema.test.ts · Verify: `bun test profile` green
+- [x] T066 [FR-020] Audit profile schema: types, capabilities, per-type global+project paths, flat flag, config format, guidance filename — File: src/core/profiles/profile-registry.ts · Verify ✅: schema now includes `id`, `version`, `guidanceFilename`, per-type paths/flat/config/dirname, and capability dialects.
+- [x] T067 [FR-020] Add JSON-schema/validator for profiles (reject malformed) — File: src/core/profiles/profile-registry.ts · Verify ✅: `validateProfile` + `ProfileValidationFailed` reject malformed profiles with field-level reasons.
+- [x] T068 [FR-020 | NFR-040] Confirm audit/deploy read profile data only (no per-harness branches) — File: src/core/audit/auditor.ts · Verify ✅: `rg -n "claude-code|codex|antigravity|opencode" src/core/audit src/core/deploy` returns no matches.
+- [x] T069 [FR-020] Unit test: a profile fully drives audit with no code change — File: tests/unit/profile-schema.test.ts · Verify ✅: custom profile data makes a custom hook deployable through `computeVerdict`; `bun test tests/unit/profile-schema.test.ts` green.
 
 ### FR-021 — Built-in profiles: Claude Code, Codex, Antigravity, OpenCode
-- [ ] T070 [FR-021] Verify Claude Code profile (skill dir, flat req, hook support, MCP format) — File: src/core/profiles/profile-registry.ts · Verify: fields match current CC conventions
-- [ ] T071 [FR-021] Verify Codex profile (AGENTS.md guidance, paths, config format) — File: src/core/profiles/profile-registry.ts · Verify: fields correct
-- [ ] T072 [FR-021] Verify Antigravity profile — File: src/core/profiles/profile-registry.ts · Verify: fields correct
-- [ ] T073 [FR-021] Verify OpenCode profile — File: src/core/profiles/profile-registry.ts · Verify: fields correct
-- [ ] T074 [FR-021] Test each built-in profile's skill dir / flat / hook / MCP fields — File: tests/unit/profile-schema.test.ts · Verify: per-profile assertions green
+- [x] T070 [FR-021] Verify Claude Code profile (skill dir, flat req, hook support, MCP format) — File: src/core/profiles/profile-registry.ts · Verify ✅: test asserts CLAUDE.md, flat skill deployment, hooks support, and claude MCP format.
+- [x] T071 [FR-021] Verify Codex profile (AGENTS.md guidance, paths, config format) — File: src/core/profiles/profile-registry.ts · Verify ✅: test asserts AGENTS.md, codex TOML config, and no hook capability.
+- [x] T072 [FR-021] Verify Antigravity profile — File: src/core/profiles/profile-registry.ts · Verify ✅: test asserts AGENTS.md profile behavior, antigravity MCP config, and hook capability.
+- [x] T073 [FR-021] Verify OpenCode profile — File: src/core/profiles/profile-registry.ts · Verify ✅: test asserts singular `skill` dir and opencode JSON config format.
+- [x] T074 [FR-021] Test each built-in profile's skill dir / flat / hook / MCP fields — File: tests/unit/profile-schema.test.ts · Verify ✅: per-profile assertions green.
 
 ### FR-022 — Developer-defined custom profiles (pi, oh-my-pi, Hermes, ante)
-- [ ] T075 [FR-022] Load custom profiles from a profiles directory (data, not code) — File: src/core/profiles/profile-registry.ts · Verify: dropping a YAML/JSON profile registers it
-- [ ] T076 [FR-022] Wire `qm profile add/edit/list/validate` — File: src/cli/commands/profile.ts · Verify: custom profile appears in list and validates
-- [ ] T077 [FR-022] Test: custom profile participates in audit identically to built-in — File: tests/unit/profile-schema.test.ts · Verify: custom profile audited like built-in
+- [x] T075 [FR-022] Load custom profiles from a profiles directory (data, not code) — File: src/core/profiles/profile-registry.ts · Verify ✅: dropping a YAML profile into a temp profile dir registers it.
+- [x] T076 [FR-022] Wire `qm profile add/edit/list/validate` — File: src/cli/commands/profile.ts · Verify ✅: CLI test validates, adds, and lists a custom profile via `QM_PROFILE_DIR`.
+- [x] T077 [FR-022] Test: custom profile participates in audit identically to built-in — File: tests/unit/profile-schema.test.ts · Verify ✅: custom profile verdict path uses the same `computeVerdict` function as built-ins.
 
 ### FR-023 — Profiles are versionable, shareable data
-- [ ] T078 [FR-023] Editing a profile field changes subsequent deploys with no program update — File: src/core/profiles/profile-registry.ts · Verify: change skill dir → next plan uses new dir
-- [ ] T079 [FR-023] Add profile version field + change-safe load — File: src/core/profiles/profile-registry.ts · Verify: versioned profile loads; test asserts deploy reflects edit
+- [x] T078 [FR-023] Editing a profile field changes subsequent deploys with no program update — File: src/core/profiles/profile-registry.ts · Verify ✅: editing YAML skill path changes the next compiled deployment plan target.
+- [x] T079 [FR-023] Add profile version field + change-safe load — File: src/core/profiles/profile-registry.ts · Verify ✅: versioned profile loads and edited profile data affects deploy plan; `bun test tests/unit/profile-schema.test.ts` green.
 
 ---
 
@@ -190,34 +190,34 @@ Depends on: Phase 0 (types). Profiles are data; audit & deploy must need no harn
 Depends on: Phases 1 & 3 (capabilities + profiles).
 
 ### FR-030 — Compute verdict (deployable / transform / incompatible)
-- [ ] T080 [FR-030] Audit `auditor.ts` verdict function is pure + deterministic — File: src/core/audit/auditor.ts · Verify: same inputs → same verdict, no side effects
-- [ ] T081 [FR-030] Type-not-supported → incompatible with reason — File: src/core/audit/auditor.ts · Verify: hook vs no-hook harness = incompatible
-- [ ] T082 [FR-030] Capability-not-supported → incompatible — File: src/core/audit/auditor.ts · Verify: unsupported capability = incompatible
-- [ ] T083 [FR-030] All supported → deployable — File: src/core/audit/auditor.ts · Verify: skill vs skill-supporting harness = deployable
-- [ ] T084 [FR-030] Unit test verdict truth table — File: tests/unit/audit.test.ts · Verify: `bun test audit` green
+- [x] T080 [FR-030] Audit `auditor.ts` verdict function is pure + deterministic — File: src/core/audit/auditor.ts · Verify ✅: unit test asserts same input yields same verdict.
+- [x] T081 [FR-030] Type-not-supported → incompatible with reason — File: src/core/audit/auditor.ts · Verify ✅: unsupported hook type returns incompatible with type reason.
+- [x] T082 [FR-030] Capability-not-supported → incompatible — File: src/core/audit/auditor.ts · Verify ✅: unsupported hooks capability returns incompatible with capability reason.
+- [x] T083 [FR-030] All supported → deployable — File: src/core/audit/auditor.ts · Verify ✅: supported skill/profile pair is deployable.
+- [x] T084 [FR-030] Unit test verdict truth table — File: tests/unit/audit.test.ts · Verify ✅: `bun test tests/unit/audit.test.ts` green.
 
 ### FR-031 — Human-readable reason on non-deployable verdicts
-- [ ] T085 [FR-031 | NFR-050] Every non-deployable verdict carries a plain-language reason naming the driver — File: src/core/audit/auditor.ts · Verify: each incompatible/transform verdict has reason string
-- [ ] T086 [FR-031] Test: reason names the specific capability/convention — File: tests/unit/audit.test.ts · Verify: assertion on reason content
+- [x] T085 [FR-031 | NFR-050] Every non-deployable verdict carries a plain-language reason naming the driver — File: src/core/audit/auditor.ts · Verify ✅: tests assert type, capability, dialect, flatten, config-translate, and override reasons.
+- [x] T086 [FR-031] Test: reason names the specific capability/convention — File: tests/unit/audit.test.ts · Verify ✅: reason-content assertions green.
 
 ### FR-032 — Identify transform-required + name the transform
-- [ ] T087 [FR-032] Audit `transforms.ts` registry (flatten, config-translate) — File: src/core/audit/transforms.ts · Verify: registered transforms enumerable
-- [ ] T088 [FR-032] Nested skill vs flat-only → transform verdict named "flatten" — File: src/core/audit/auditor.ts · Verify: verdict = transform, name = flatten
-- [ ] T089 [FR-032] Config-format mismatch with translator → transform named — File: src/core/audit/auditor.ts · Verify: verdict = transform, name = config-translate
-- [ ] T090 [FR-032] Dialect mismatch with translator → transform; without → incompatible — File: src/core/audit/auditor.ts · Verify: both branches tested
-- [ ] T091 [FR-032] Test transform identification + naming — File: tests/unit/audit.test.ts · Verify: assertions green
+- [x] T087 [FR-032] Audit `transforms.ts` registry (flatten, config-translate) — File: src/core/audit/transforms.ts · Verify ✅: registry enumerates `flatten` and `config-translate`.
+- [x] T088 [FR-032] Nested skill vs flat-only → transform verdict named "flatten" — File: src/core/audit/auditor.ts · Verify ✅: nested skill targeting Codex returns transform `flatten`.
+- [x] T089 [FR-032] Config-format mismatch with translator → transform named — File: src/core/audit/auditor.ts · Verify ✅: MCP config mismatch returns transform `config-translate`.
+- [x] T090 [FR-032] Dialect mismatch with translator → transform; without → incompatible — File: src/core/audit/auditor.ts · Verify ✅: json→toml dialect transforms; claude hook→antigravity without translator is incompatible.
+- [x] T091 [FR-032] Test transform identification + naming — File: tests/unit/audit.test.ts · Verify ✅: assertions green.
 
 ### FR-033 — Compatibility matrix across all artifacts × harnesses
-- [ ] T092 [FR-033] Implement `computeCompatibilityMatrix` (artifacts × profiles) — File: src/core/audit/auditor.ts · Verify: returns 2D verdict grid
-- [ ] T093 [FR-033 | NFR-002] Perf: matrix of 1000×10 < 5s — File: tests/integration/audit.test.ts · Verify: timed assertion passes
-- [ ] T094 [FR-033] Wire `qm audit --matrix` (+ `--json`) — File: src/cli/commands/audit.ts · Verify: matrix view shows safe/transform/blocked per harness
-- [ ] T095 [FR-033] Integration test for matrix view — File: tests/integration/audit.test.ts · Verify: `bun test audit` green
+- [x] T092 [FR-033] Implement `computeCompatibilityMatrix` (artifacts × profiles) — File: src/core/audit/auditor.ts · Verify ✅: matrix returns artifact×profile grid and summary total.
+- [x] T093 [FR-033 | NFR-002] Perf: matrix of 1000×10 < 5s — File: tests/integration/audit.test.ts · Verify ✅: timed test computes 10,000 cells in under 5s.
+- [x] T094 [FR-033] Wire `qm audit --matrix` (+ `--json`) — File: src/cli/commands/audit.ts · Verify ✅: CLI matrix returns harness list, summary, cells, verdicts, reasons, transforms.
+- [x] T095 [FR-033] Integration test for matrix view — File: tests/integration/audit.test.ts · Verify ✅: `bun test tests/integration/audit.test.ts` green.
 
 ### FR-034 — Manual verdict override with note
-- [ ] T096 [FR-034] Store override (artifactId, harness, status, note) — File: src/core/audit/auditor.ts · Verify: override persisted
-- [ ] T097 [FR-034] Override supersedes computed verdict; reason marks "manual override" — File: src/core/audit/auditor.ts · Verify: overridden verdict honored + labeled
-- [ ] T098 [FR-034] Wire `qm audit override <artifact> <harness> --status --note` — File: src/cli/commands/audit.ts · Verify: override visible in matrix
-- [ ] T099 [FR-034] Test: deployment honors override; UI shows it as manual — File: tests/unit/audit.test.ts · Verify: assertions green
+- [x] T096 [FR-034] Store override (artifactId, harness, status, note) — File: src/core/audit/auditor.ts, src/storage/migrations.ts · Verify ✅: migration v3 creates `verdict_overrides`; `saveVerdictOverride` persists rows.
+- [x] T097 [FR-034] Override supersedes computed verdict; reason marks "manual override" — File: src/core/audit/auditor.ts · Verify ✅: persisted override map supersedes computed verdict with labeled reason.
+- [x] T098 [FR-034] Wire `qm audit override <artifact> <harness> --status --note` — File: src/cli/commands/audit.ts · Verify ✅: CLI override is visible in subsequent matrix output.
+- [x] T099 [FR-034] Test: deployment honors override; UI shows it as manual — File: tests/unit/audit.test.ts, tests/integration/audit.test.ts · Verify ✅: override path tested through core and CLI matrix.
 
 ---
 
