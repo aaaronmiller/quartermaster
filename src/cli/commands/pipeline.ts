@@ -1,42 +1,82 @@
-import { addPipelineToLoadout, createPipeline, validatePipeline } from "../../core/loadouts/pipelines";
-import { fail, printJson, printText } from "../output";
-import type { Repository } from "../../storage/repository";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — `qm pipeline` CLI command
+// FR-110, FR-111, FR-112, FR-113: pipeline management
+// ─────────────────────────────────────────────────────────────
 
-export function pipelineCommand(repo: Repository, args: string[]): void {
-  const sub = args[0] ?? "list";
-  if (sub === "new" || sub === "create") {
-    const name = args[1] ?? fail("qm pipeline new requires name");
-    const members = valuesAfter(args, "--member");
-    const useCase = valueAfter(args, "--use-case") ?? name;
-    const directive = valueAfter(args, "--directive") ?? `Use the ${name} pipeline for ${useCase}.`;
-    printJson({ pipeline: createPipeline(repo, { name, use_case: useCase, directive, origin: "hand", members }) });
-    return;
+import { loadConfig } from '@core/config/load';
+import { PipelineManager } from '@core/pipelines/pipelines';
+import { validatePipeline, validateAllPipelines } from '@core/pipelines/validate';
+import { proposePipelines } from '@core/pipelines/propose';
+import type { PipelineDefinition } from '@core/types';
+import { Repository } from '@storage/repository';
+import { type OutputEnvelope, failure, success } from '../output';
+import type { ParsedArgs } from '../output';
+
+export async function pipelineCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  const [sub, name, first, second] = args.positional;
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    switch (sub) {
+      case 'list':
+      case undefined:
+        return success('pipeline', { pipelines: repo.queryRaw('SELECT name, artifacts, directives FROM pipelines') });
+
+      case 'create':
+        if (!name) return failure('pipeline', 'usage: qm pipeline create <name> <artifact-id>...');
+        const artifacts = args.positional.slice(2);
+        const pipeline: PipelineDefinition = {
+          name,
+          artifacts,
+          directives: {},
+        };
+        const manager = new PipelineManager(repo);
+        manager.create(pipeline);
+        return success('pipeline', { pipeline });
+
+      case 'get':
+        if (!name) return failure('pipeline', 'usage: qm pipeline get <name>');
+        const mgr = new PipelineManager(repo);
+        const found = mgr.get(name);
+        if (!found) return failure('pipeline', `pipeline not found: ${name}`);
+        return success('pipeline', { pipeline: found });
+
+      case 'delete':
+        if (!name) return failure('pipeline', 'usage: qm pipeline delete <name>');
+        const delMgr = new PipelineManager(repo);
+        delMgr.delete(name);
+        return success('pipeline', { deleted: name });
+
+      case 'validate':
+        const valMgr = new PipelineManager(repo);
+        const toValidate = name ? valMgr.get(name) : null;
+        if (name && !toValidate) return failure('pipeline', `pipeline not found: ${name}`);
+        const result = name
+          ? validatePipeline(repo, toValidate!, args.flags.composition === 'true')
+          : validateAllPipelines(repo, args.flags.composition === 'true');
+        return success('pipeline', result);
+
+      case 'propose':
+        return proposeHandler(args, repo, cfg);
+
+      default:
+        return failure('pipeline', 'usage: qm pipeline list|create|get|delete|validate|propose');
+    }
+  } catch (err) {
+    return failure('pipeline', (err as Error).message);
+  } finally {
+    repo.close();
   }
-  if (sub === "validate") {
-    const name = args[1] ?? fail("qm pipeline validate requires pipeline name");
-    printJson(validatePipeline(repo, name));
-    return;
-  }
-  if (sub === "add-to") {
-    const loadout = args[1] ?? fail("qm pipeline add-to requires loadout name");
-    const pipeline = args[2] ?? fail("qm pipeline add-to requires pipeline name");
-    printJson({ loadout: addPipelineToLoadout(repo, loadout, pipeline) });
-    return;
-  }
-  const pipelines = repo.listPipelines();
-  if (args.includes("--json")) printJson({ pipelines });
-  else printText(pipelines.map((pipeline) => `${pipeline.name}\t${pipeline.members.length}\t${pipeline.use_case}`));
 }
 
-function valueAfter(args: string[], flag: string): string | null {
-  const index = args.indexOf(flag);
-  return index >= 0 ? args[index + 1] ?? null : null;
-}
-
-function valuesAfter(args: string[], flag: string): string[] {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    if (args[index] === flag && args[index + 1]) values.push(args[index + 1]!);
+async function proposeHandler(args: ParsedArgs, repo: Repository, cfg: ReturnType<typeof loadConfig>): Promise<OutputEnvelope> {
+  const instruction = args.flags.instruction as string | undefined;
+  try {
+    const options: { instruction?: string } = {};
+    if (instruction) options.instruction = instruction;
+    const proposals = await proposePipelines(repo.listArtifacts(), cfg, options);
+    return success('pipeline', { proposals });
+  } catch (err) {
+    return failure('pipeline', (err as Error).message);
   }
-  return values;
 }

@@ -1,48 +1,152 @@
-import { createDeploymentPlan } from "../../core/deploy/plan";
-import { applyPlacement } from "../../core/deploy/placer";
-import { createDeploymentRecord } from "../../core/deploy/records";
-import { applyRollback, createRollbackPlan } from "../../core/deploy/rollback";
-import { scopeArtifactsFromRepository } from "../../core/deploy/scope";
-import { loadProfiles } from "../../core/audit/profile-registry";
-import { activeLoadoutForHarness } from "../../core/loadouts/loadouts";
-import { argValue, fail, hasFlag, printJson, printText } from "../output";
-import type { Repository } from "../../storage/repository";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — `qm deploy <harness>`
+// Preview deployment plans. Apply/rollback are wired in later tasks.
+// ─────────────────────────────────────────────────────────────
 
-export function deployCommand(repo: Repository, args: string[]): void {
-  const sub = args[0];
-  const harness = argValue(args, "--harness");
-  const profiles = loadProfiles();
-  const profile = profiles.find((candidate) => candidate.id === harness) ?? profiles[0];
-  if (!profile) fail("No harness profiles available");
-  if (sub === "rollback") {
-    const id = args[1];
-    if (!id) fail("qm deploy rollback requires deployment id");
-    const record = repo.getDeployment(id);
-    if (!record) fail(`Deployment not found: ${id}`);
-    const operations = hasFlag(args, "--yes") ? applyRollback(record) : createRollbackPlan(record);
-    printJson({ rollback: hasFlag(args, "--yes") ? "applied" : "preview", operations });
-    return;
+import { computeCompatibilityMatrix, loadVerdictOverrides } from '@core/audit/auditor';
+import { loadConfig } from '@core/config/load';
+import { compilePlan, type PlanOptions, type PlanSafetyGate, type PlanScope } from '@core/deploy/plan';
+import type { Artifact } from '@core/types';
+import { computeSafetyScore } from '@core/safety/findings';
+import { executePlacement } from '@core/deploy/placer';
+import { createRecord, storeRecord } from '@core/deploy/records';
+import { rollbackDeployment } from '@core/deploy/rollback';
+import { renderGuidance, harnessGuidanceFilename } from '@core/guidance/render';
+import { LoadoutManager } from '@core/loadouts/loadouts';
+import { PipelineManager } from '@core/pipelines/pipelines';
+import { ProfileRegistry } from '@core/profiles/profile-registry';
+import { Repository } from '@storage/repository';
+import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { type OutputEnvelope, failure, success } from '../output';
+import type { ParsedArgs } from '../output';
+
+export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const registry = new ProfileRegistry({ profileDirs: [cfg.profileDir] });
+    const targets = resolveTargets(args, cfg, registry);
+    if (!targets.ok) return failure('deploy', targets.reason);
+    const artifacts = repo.listArtifacts();
+    const loadouts = new LoadoutManager(repo);
+    const overrides = loadVerdictOverrides(repo);
+    const profiles = targets.ids.map((id) => registry.getProfile(id)).filter((p) => p !== null);
+    const scope = parseScope(args.flags.scope);
+    // FR-141: build the safety gate from persisted findings/overrides/allowlist.
+    const safetyGate = buildSafetyGate(repo, artifacts, cfg.safety?.threshold ?? 0.6);
+    const plans = profiles.map((profile) => {
+      const scopedArtifacts = loadouts.filterArtifactsForHarness(artifacts, profile.id);
+      const matrix = computeCompatibilityMatrix(scopedArtifacts, [profile], overrides);
+      const verdicts = matrix.map((row) => row[0]!).filter(Boolean);
+      const planOpts: PlanOptions = { safety: safetyGate };
+      if (scope) planOpts.scope = scope;
+      return compilePlan(scopedArtifacts, verdicts, profile, planOpts);
+    });
+    if (args.flags.yes === true) {
+      const deployments = [];
+      for (const plan of plans) {
+        const result = await executePlacement(plan, repo);
+        // FR-120: render and deploy guidance file for this harness
+        const profile = plan.harness ? registry.getProfile(plan.harness) : null;
+        if (profile) {
+          // FR-121/FR-122: inject the directives of the harness's active loadout;
+          // fall back to all defined pipelines when no loadout is active.
+          const loadoutMgr = new LoadoutManager(repo);
+          const activeDirectives = loadoutMgr.activePipelineDirectives(profile.id);
+          const pipelineMgr = new PipelineManager(repo);
+          const pipelines = activeDirectives.length > 0 ? activeDirectives : pipelineMgr.list();
+          const canonicalContent = `# ${profile.id} Guidance\n\nManaged by Quartermaster.`;
+          const existingGuidancePath = join(plan.operations[0]?.targetPath ?? '', '..', harnessGuidanceFilename(profile.id));
+          const existingFile = existsSync(existingGuidancePath)
+            ? readFileSync(existingGuidancePath, 'utf8')
+            : '';
+          const rendered = renderGuidance({
+            canonical: canonicalContent,
+            pipelineDirectives: pipelines,
+            targetHarness: profile.id,
+            existingFile,
+          });
+          const guidancePath = join(
+            plan.operations[0]?.targetPath.split('/').slice(0, -1).join('/') ?? '.',
+            harnessGuidanceFilename(profile.id),
+          );
+          writeFileSync(guidancePath, rendered.content);
+        }
+        const record = createRecord(
+          plan,
+          result.operations.some((op) => op.status === 'failed') ? 'failed' : 'applied',
+        );
+        storeRecord(record, repo);
+        deployments.push({ plan, record, result });
+      }
+      return success('deploy', {
+        mode: 'applied',
+        ...(deployments.length === 1 ? deployments[0] : { deployments }),
+      });
+    }
+    return success('deploy', {
+      mode: 'dry-run',
+      requiresConfirmation: true,
+      ...(plans.length === 1 ? { plan: plans[0] } : { plans }),
+    });
+  } finally {
+    repo.close();
   }
-  const explicitLoadout = argValue(args, "--loadout");
-  const loadout = explicitLoadout ? repo.getLoadout(explicitLoadout) ?? fail(`Loadout not found: ${explicitLoadout}`) : activeLoadoutForHarness(repo, profile.id);
-  const artifacts = scopeArtifactsFromRepository(repo, { loadout, path: argValue(args, "--path"), type: null });
-  const planInput: Parameters<typeof createDeploymentPlan>[0] = {
-    artifacts,
-    verdicts: repo.listVerdicts(),
-    profile,
-    scope: explicitLoadout ? `loadout:${loadout?.name ?? explicitLoadout}` : loadout ? `active-loadout:${loadout.name}` : argValue(args, "--path") ?? "all"
-  };
-  const targetRoot = argValue(args, "--target-root");
-  if (targetRoot) planInput.targetRoot = targetRoot;
-  const plan = createDeploymentPlan(planInput);
-  if (sub === "apply") {
-    if (!hasFlag(args, "--yes")) fail("qm deploy apply requires --yes for non-interactive apply");
-    const operations = plan.placements.filter((op) => op.kind !== "skip").map(applyPlacement);
-    const record = createDeploymentRecord(plan, operations);
-    repo.saveDeployment(record);
-    printJson({ deployment: record });
-    return;
+}
+
+/** Assemble the safety gate from persisted findings, overrides, and allowlist. */
+function buildSafetyGate(repo: Repository, artifacts: Artifact[], threshold: number): PlanSafetyGate {
+  const scores: Record<string, number> = {};
+  for (const artifact of artifacts) {
+    const findings = repo.getFindings(artifact.id);
+    if (findings.length > 0) scores[artifact.id] = computeSafetyScore(findings);
   }
-  if (args.includes("--json")) printJson({ plan });
-  else printText(plan.placements.map((op) => `${op.kind}\t${op.artifact_id ?? ""}\t${op.target_path ?? ""}\t${op.reason ?? ""}`));
+  const overrides = new Set(repo.listSafetyOverrides());
+  const allowlistValues = repo.listAllowlist().map((e) => e.value);
+  const allowlisted = new Set<string>();
+  for (const artifact of artifacts) {
+    if (allowlistValues.includes(artifact.id) || allowlistValues.includes(artifact.source.kind)) {
+      allowlisted.add(artifact.id);
+    }
+  }
+  return { threshold, scores, overrides, allowlisted };
+}
+
+function parseScope(raw: boolean | string | undefined): PlanScope | undefined {
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  if (raw.startsWith('path:')) return { orgPath: raw.slice('path:'.length) };
+  if (raw.startsWith('tag:')) return { tags: [raw.slice('tag:'.length)] };
+  if (raw.startsWith('id:')) return { ids: [raw.slice('id:'.length)] };
+  return { ids: [raw] };
+}
+
+function resolveTargets(
+  args: ParsedArgs,
+  cfg: ReturnType<typeof loadConfig>,
+  registry: ProfileRegistry,
+): { ok: true; ids: string[] } | { ok: false; reason: string } {
+  if (args.flags.all === true) {
+    const ids = cfg.harnesses.length > 0 ? cfg.harnesses : registry.listProfiles().map((profile) => profile.id);
+    return { ok: true, ids };
+  }
+  const target = args.positional[0];
+  if (!target) return { ok: false, reason: 'usage: qm deploy <harness|group> or qm deploy --all' };
+  const group = cfg.harnessGroups[target];
+  if (group) return { ok: true, ids: group };
+  if (registry.getProfile(target)) return { ok: true, ids: [target] };
+  return { ok: false, reason: `profile or group not found: ${target}` };
+}
+
+export async function rollbackCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  const recordId = args.positional[0];
+  if (!recordId) return failure('rollback', 'usage: qm rollback <deployId>');
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const record = await rollbackDeployment(recordId, repo);
+    return success('rollback', { record });
+  } finally {
+    repo.close();
+  }
 }

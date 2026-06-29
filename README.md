@@ -1,57 +1,76 @@
+---
+date: 2026-06-29 12:00:00 PDT
+ver: 1.0.0
+author: claude-opus
+model: claude-opus-4-8
+tags: [quartermaster, cli, catalog, deploy, audit, loadouts, pipelines, safety, mcp, surfaces]
+---
 # Quartermaster
 
-Quartermaster is a local-first Bun/TypeScript CLI for cataloging agent artifacts, auditing harness
-compatibility, previewing reversible deployments, managing loadouts and guidance, and exposing
-stable JSON query commands for coding agents.
+Quartermaster manages a local library of agent artifacts and deploys compatible artifacts into configured harness profiles.
 
-Loadouts and pipelines are represented as ordered pointers to cataloged skill files and related
-artifacts. They can be assigned to harnesses so each CLI sees a focused active sequence instead of
-the whole library.
+## Commands
 
-## Install
+Every command supports `--json` for machine-readable output and exits nonzero with a plain-language `reason` on failure. Run `qm --help` for the authoritative list.
 
-```bash
-bun install
+**Catalog & ingestion**
+- `qm scan [roots] [--incremental]` — scan library roots into the catalog
+- `qm list` / `qm search` — filter by type, capability, source, path, or free text
+- `qm import <source> [--kind=...]` — import from git, git subdir, marketplace, or local path
+- `qm sync [--check] [--confirm]` — check or update upstreams (never silently overwrites local edits)
+- `qm pin <artifact> <rev>` / `qm unpin <artifact>` — pin artifacts to a revision
+- `qm new <type> <path>` — scaffold a self-authored artifact
+
+**Profiles, audit & deploy**
+- `qm profile add/edit/list/validate` — manage declarative harness profiles
+- `qm audit [--matrix]` / `qm audit override <artifact> <harness> --status --note` — compatibility verdicts
+- `qm audit risk` / `qm audit safety <artifact>` — risk + safety scanning
+- `qm deploy <harness|--all> [--scope=...] [--yes]` — dry-run by default, apply with `--yes`
+- `qm rollback <deployId>` — reverse a recorded deployment
+- `qm status <harness>` — deployed artifacts, drift, and orphans
+
+**Loadouts, pipelines & guidance**
+- `qm loadout create/add/add-pipeline/assign/copy/status` — named artifact + pipeline sets
+- `qm pipeline create/get/delete/list/validate/propose` — ordered skill pipelines
+- `qm guidance render <harness> [--source=...]` — render CLAUDE.md / AGENTS.md with managed sections
+
+**Advisory evaluation (model-backed, never auto-applied)**
+- `qm eval config|grade|compare|investigate` — advisory grading/comparison
+- `qm proposal list/accept/reject/edit` / `qm propose loadouts` — review proposals
+
+**Safety & agent surfaces**
+- `qm safety allowlist|threshold|override|audit` / `qm allowlist add/remove/list` — auditor orchestration
+- `qm query list-skills|search|get|audit|scaffold|status` — stable machine-readable agent interface
+- `qm mcp status|serve` — optional MCP server (disabled by default; CLI stays primary)
+
+**Surfaces & config**
+- `qm tui` — dark-mode-first terminal dashboard
+- `qm web [--port=N]` — local (127.0.0.1) dark-mode-first web UI
+- `qm config get/set/list/path` — local configuration
+- `qm compose validate <chain.json>` — optional composition validation (see below)
+
+## Optional Composition
+
+Composition validation is optional and disabled by default. It validates Noun/Verb/Adjective artifact chains before a composed run:
+
+- Nouns and verbs connect through matching output/input labels.
+- Cycles are rejected.
+- Adjectives can attach only to artifacts marked `enhanceable`.
+
+Enable it with config:
+
+```json
+{
+  "composition": {
+    "enabled": true
+  }
+}
 ```
 
-## Common Commands
+Or for one command:
 
 ```bash
-bun run qm scan --root tests/fixtures/library/mixed --json
-bun run qm catalog --json
-bun run qm audit --matrix --json
-bun run qm loadout new coding --json
-bun run qm loadout assign coding --harness claude-code --json
-bun run qm pipeline new research-report --member <artifact-id> --directive "Use these skills in sequence." --json
-bun run qm eval audit <artifact-id> --model "$QM_MODEL_NAME"
-bun run qm eval improve <artifact-id> --model "$QM_MODEL_NAME"
-bun run qm deploy preview --harness claude-code --target-root /tmp/qm-target --json
-bun run qm deploy apply --harness claude-code --target-root /tmp/qm-target --yes --json
-bun run qm tui
-bun run qm web --port 4173
-bun run qm status --json
+QM_COMPOSITION_ENABLED=true qm compose validate chain.json --json
 ```
 
-LLM-backed audit and improvement uses an OpenAI-compatible endpoint. Configure
-`QM_MODEL_NAME`, plus `QM_MODEL_API_KEY` or `OPENAI_API_KEY`; optionally set
-`QM_MODEL_BASE_URL` for a non-default gateway.
-
-Agent-safe query commands:
-
-```bash
-bun run qm query summary --json
-bun run qm query artifacts --json
-bun run qm query search deep --type skill --json
-bun run qm query compatibility --artifact <artifact-id> --json
-bun run qm query deployment --harness claude-code --json
-bun run qm query loadouts --json
-bun run qm query pipelines --json
-bun run qm query proposals --json
-```
-
-Validation:
-
-```bash
-bun run typecheck
-bun test
-```
+When disabled, composition validation returns `ok: true`, `disabled: true`, and no issues. Core scan, audit, and deploy flows do not depend on composition.

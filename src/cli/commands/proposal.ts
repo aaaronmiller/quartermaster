@@ -1,22 +1,50 @@
-import { acceptProposal, rejectProposal } from "../../core/evaluation/accept";
-import { fail, printJson, printText } from "../output";
-import type { Repository } from "../../storage/repository";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — proposal lifecycle and proposal generation.
+// ─────────────────────────────────────────────────────────────
 
-export function proposalCommand(repo: Repository, args: string[]): void {
-  const sub = args[0] ?? "list";
-  if (sub === "show") {
-    const id = args[1] ?? fail("qm proposal show requires proposal id");
-    const proposal = repo.getProposal(id) ?? fail(`Proposal not found: ${id}`);
-    printJson({ proposal });
-    return;
+import { loadConfig } from '@core/config/load';
+import { proposeLoadouts } from '@core/evaluation/propose-loadouts';
+import { acceptProposal, editProposal, rejectProposal } from '@core/evaluation/proposals';
+import { Repository } from '@storage/repository';
+import { type OutputEnvelope, failure, success } from '../output';
+import type { ParsedArgs } from '../output';
+
+export function proposalCommand(args: ParsedArgs): OutputEnvelope {
+  const [sub, id, value] = args.positional;
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    switch (sub) {
+      case 'list':
+      case undefined:
+        return success('proposal', { proposals: repo.listProposals() });
+      case 'accept':
+        if (!id) return failure('proposal', 'usage: qm proposal accept <id>');
+        return success('proposal', { proposal: acceptProposal(repo, id) });
+      case 'reject':
+        if (!id) return failure('proposal', 'usage: qm proposal reject <id> [reason]');
+        return success('proposal', { proposal: rejectProposal(repo, id, value ?? 'rejected by user') });
+      case 'edit':
+        if (!id || value === undefined) return failure('proposal', 'usage: qm proposal edit <id> <json>');
+        return success('proposal', { proposal: editProposal(repo, id, JSON.parse(value)) });
+      default:
+        return failure('proposal', `unknown subcommand '${sub}'`);
+    }
+  } catch (err) {
+    return failure('proposal', (err as Error).message);
+  } finally {
+    repo.close();
   }
-  if (sub === "accept" || sub === "reject") {
-    const id = args[1] ?? fail(`qm proposal ${sub} requires proposal id`);
-    if (sub === "accept") printJson(acceptProposal(repo, id));
-    else printJson({ proposal: rejectProposal(repo, id), applied: null });
-    return;
+}
+
+export function proposeCommand(args: ParsedArgs): OutputEnvelope {
+  const [sub] = args.positional;
+  if (sub !== 'loadouts') return failure('propose', 'usage: qm propose loadouts');
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    return success('propose', { proposal: proposeLoadouts(repo, repo.listArtifacts()) });
+  } finally {
+    repo.close();
   }
-  const proposals = repo.listProposals();
-  if (args.includes("--json")) printJson({ proposals });
-  else printText(proposals.map((proposal) => `${proposal.id}\t${proposal.kind}\t${proposal.accepted === null ? "pending" : proposal.accepted ? "accepted" : "rejected"}`));
 }

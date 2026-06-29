@@ -1,24 +1,47 @@
-import { argValue, printJson, printText } from "../output";
-import type { Repository } from "../../storage/repository";
-import type { ArtifactType } from "../../core/types";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — `qm list` / `qm search` (FR-006)
+// Search and filter the catalog by type, capability, source,
+// organizational path, and free text.
+// ─────────────────────────────────────────────────────────────
 
-export function catalogCommand(repo: Repository, args: string[]): void {
-  if (args[0] === "show" && args[1]) {
-    const artifact = repo.getArtifact(args[1]);
-    if (args.includes("--json")) printJson({ artifact });
-    else printText(artifact ? `${artifact.id} ${artifact.type} ${artifact.name}` : "Artifact not found");
-    return;
+import { searchCatalog } from '@core/catalog/search';
+import type { SearchQuery } from '@core/catalog/search';
+import { loadConfig } from '@core/config/load';
+import type { ArtifactType } from '@core/types';
+import { Repository } from '@storage/repository';
+import { type OutputEnvelope, success } from '../output';
+import type { ParsedArgs } from '../output';
+
+function buildQuery(args: ParsedArgs): SearchQuery {
+  const q: SearchQuery = {};
+  if (typeof args.flags.type === 'string') q.type = args.flags.type as ArtifactType;
+  if (typeof args.flags.capability === 'string') q.capability = args.flags.capability;
+  if (typeof args.flags.source === 'string') {
+    q.source = args.flags.source as 'github' | 'git' | 'marketplace' | 'local';
   }
-  const filters: Parameters<Repository["listArtifacts"]>[0] = {};
-  const type = argValue(args, "--type") as ArtifactType | null;
-  const source = argValue(args, "--source");
-  const path = argValue(args, "--path");
-  const text = argValue(args, "--text") ?? args.find((arg) => !arg.startsWith("--"));
-  if (type) filters.type = type;
-  if (source) filters.source_id = source;
-  if (path) filters.org_path = path;
-  if (text) filters.text = text;
-  const artifacts = repo.listArtifacts(filters);
-  if (args.includes("--json")) printJson({ artifacts });
-  else printText(artifacts.map((artifact) => `${artifact.id}\t${artifact.type}\t${artifact.org_path}\t${artifact.name}`));
+  if (typeof args.flags.path === 'string') q.path = args.flags.path;
+  // Free text comes from a positional arg (`qm search <text>`) or --text.
+  const text = typeof args.flags.text === 'string' ? args.flags.text : args.positional[0];
+  if (text) q.text = text;
+  return q;
+}
+
+export function listCommand(args: ParsedArgs): OutputEnvelope {
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const results = searchCatalog(repo, buildQuery(args));
+    return success('list', {
+      count: results.length,
+      artifacts: results.map((a) => ({
+        id: a.id,
+        type: a.type,
+        name: a.name,
+        organizationalPath: a.organizationalPath,
+        capabilities: a.capabilities.map((c) => c.type),
+      })),
+    });
+  } finally {
+    repo.close();
+  }
 }

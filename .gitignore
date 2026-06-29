@@ -12,3 +12,6 @@ Thumbs.db
 .idea/
 .quartermaster/
 tests/tmp/
+
+# Local v1 backup, not version-controlled
+.archive/

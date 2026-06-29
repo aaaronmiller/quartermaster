@@ -1,0 +1,23 @@
+name: antigravity
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.antigravity/skills/
+      project: .antigravity/skills/
+    flat: false
+    configFormat: null
+  - type: mcp-config
+    locations:
+      global: /home/cheta/.antigravity/servers.json
+      project: .antigravity/servers.json
+    flat: true
+    configFormat: json
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: mcp
+    dialects: [single-server]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true

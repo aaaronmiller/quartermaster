@@ -1,12 +1,108 @@
-import { auditArtifacts } from "../../core/audit/auditor";
-import { loadProfiles } from "../../core/audit/profile-registry";
-import { argValue, printJson, printText } from "../output";
-import type { Repository } from "../../storage/repository";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — `qm audit`
+// Compatibility matrix and manual verdict overrides.
+// ─────────────────────────────────────────────────────────────
 
-export function auditCommand(repo: Repository, args: string[]): void {
-  const harness = argValue(args, "--harness");
-  const profiles = loadProfiles(argValue(args, "--profiles") ?? undefined).filter((profile) => !harness || profile.id === harness);
-  const verdicts = auditArtifacts(repo, profiles);
-  if (args.includes("--json")) printJson({ verdicts });
-  else printText(verdicts.map((v) => `${v.artifact_id}\t${v.harness_id}\t${v.result}\t${v.reason ?? ""}`));
+import {
+  computeCompatibilityMatrix,
+  loadVerdictOverrides,
+  saveVerdictOverride,
+  summarizeMatrix,
+  type VerdictStatus,
+} from '@core/audit/auditor';
+import { loadConfig } from '@core/config/load';
+import { ProfileRegistry } from '@core/profiles/profile-registry';
+import { scanRisks } from '@core/risk/scanner';
+import { Repository } from '@storage/repository';
+import { type OutputEnvelope, failure, success } from '../output';
+import type { ParsedArgs } from '../output';
+import { safetyCommand } from './safety';
+
+/** Re-dispatch into `qm safety <sub> …`, preserving flags. */
+function delegateSafety(args: ParsedArgs, sub: string, rest: string[]): Promise<OutputEnvelope> {
+  return safetyCommand({ ...args, positional: [sub, ...rest] });
+}
+
+export async function auditCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  if (args.positional[0] === 'override') return overrideCommand(args);
+  if (args.positional[0] === 'risk') return riskCommand();
+  // FR-140/141: safety auditing + threshold live under `qm audit` too.
+  if (args.positional[0] === 'safety') return delegateSafety(args, 'audit', args.positional.slice(1));
+  if (args.positional[0] === 'threshold') return delegateSafety(args, 'threshold', args.positional.slice(1));
+
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const profiles = new ProfileRegistry({ profileDirs: [cfg.profileDir] }).listProfiles();
+    const artifacts = repo.listArtifacts();
+    const matrix = computeCompatibilityMatrix(artifacts, profiles, loadVerdictOverrides(repo));
+    return success('audit', {
+      artifacts: artifacts.length,
+      harnesses: profiles.map((profile) => profile.id),
+      summary: summarizeMatrix(matrix),
+      matrix: matrix.map((row) =>
+        row.map((cell) => ({
+          artifactId: cell.artifactId,
+          harness: cell.harness,
+          verdict: cell.verdict,
+          reason: cell.reason,
+          transformation: cell.transformation,
+        })),
+      ),
+    });
+  } finally {
+    repo.close();
+  }
+}
+
+/** Top-level `qm allowlist add/remove/list` (FR-142), delegating to safety. */
+export function allowlistCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  return safetyCommand({ ...args, positional: ['allowlist', ...args.positional] });
+}
+
+async function riskCommand(): Promise<OutputEnvelope> {
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const artifacts = repo.listArtifacts();
+    const report = [];
+    for (const artifact of artifacts) {
+      const riskFlags = await scanRisks(artifact);
+      repo.upsertArtifact({ ...artifact, riskFlags });
+      report.push({ artifactId: artifact.id, riskFlags });
+    }
+    return success('audit', { artifacts: report.length, report });
+  } finally {
+    repo.close();
+  }
+}
+
+function overrideCommand(args: ParsedArgs): OutputEnvelope {
+  const artifactId = args.positional[1];
+  const harness = args.positional[2];
+  const status = args.flags.status;
+  const note = args.flags.note;
+  if (!artifactId || !harness || typeof status !== 'string' || typeof note !== 'string') {
+    return failure(
+      'audit',
+      'usage: qm audit override <artifact> <harness> --status=<deployable|transform|incompatible> --note=<text>',
+    );
+  }
+  if (!['deployable', 'transform', 'incompatible'].includes(status)) {
+    return failure('audit', `invalid override status: ${status}`);
+  }
+
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    saveVerdictOverride(repo, {
+      artifactId,
+      harness,
+      status: status as VerdictStatus,
+      note,
+    });
+    return success('audit', { artifactId, harness, status, note });
+  } finally {
+    repo.close();
+  }
 }
