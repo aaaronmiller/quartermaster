@@ -94,6 +94,10 @@ function envPatch(env: Record<string, string | undefined>): DeepPartial<Quarterm
   if (env.QM_SAFETY_THRESHOLD) safety.threshold = Number(env.QM_SAFETY_THRESHOLD);
   if (Object.keys(safety).length) patch.safety = safety;
 
+  if (env.QM_COMPOSITION_ENABLED) {
+    patch.composition = { enabled: env.QM_COMPOSITION_ENABLED === 'true' };
+  }
+
   const ev: DeepPartial<QuartermasterConfig['eval']> = {};
   if (env.QM_EVAL_PROVIDER) ev.provider = env.QM_EVAL_PROVIDER;
   if (env.QM_EVAL_BASE_URL) ev.baseUrl = env.QM_EVAL_BASE_URL;

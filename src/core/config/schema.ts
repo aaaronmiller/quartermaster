@@ -30,6 +30,12 @@ export interface SafetyConfig {
   allowlist: string[];
 }
 
+/** Optional composition validation module (FR-080). */
+export interface CompositionConfig {
+  /** Disabled modules must not block core deployment. */
+  enabled: boolean;
+}
+
 /** The fully-resolved configuration object. */
 export interface QuartermasterConfig {
   /** Library root locations to scan (FR-001). */
@@ -43,6 +49,7 @@ export interface QuartermasterConfig {
   /** Named groups of harnesses for group deploys (FR-047). */
   harnessGroups: Record<string, string[]>;
   safety: SafetyConfig;
+  composition: CompositionConfig;
   eval: EvalConfig;
 }
 
@@ -60,6 +67,7 @@ export function defaultConfig(): QuartermasterConfig {
     harnesses: [],
     harnessGroups: {},
     safety: { threshold: 0.6, allowlist: [] },
+    composition: { enabled: false },
     eval: {
       provider: 'openai-compatible',
       baseUrl: '',
@@ -116,6 +124,12 @@ export function validateConfig(c: QuartermasterConfig): ConfigProblem[] {
     problems.push({
       path: 'eval.apiKeyEnv',
       message: 'eval.apiKeyEnv must name the environment variable holding the API key',
+    });
+  }
+  if (typeof c.composition?.enabled !== 'boolean') {
+    problems.push({
+      path: 'composition.enabled',
+      message: 'composition.enabled must be true or false',
     });
   }
 

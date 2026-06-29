@@ -333,14 +333,14 @@ Depends on: Phases 2 & 5.
 ## Phase 9 — Composition Module (FR-080, OPTIONAL)
 Independently disableable; MUST NOT block core deployment. Build only after Phase 8.
 
-- [ ] T155 [FR-080] Define Noun/Verb/Adjective composability model types — File: src/core/composition/model.ts · Verify: types compile
-- [ ] T156 [FR-080] Validate chained input/output compatibility — File: src/core/composition/validate.ts · Verify: mismatch reported
-- [ ] T157 [FR-080] Detect cycles in a chain (acyclic check) — File: src/core/composition/validate.ts · Verify: cyclic chain reported
-- [ ] T158 [FR-080] Modifier (adjective) attaches only to enhanceable artifacts — File: src/core/composition/validate.ts · Verify: invalid modifier attachment rejected
-- [ ] T159 [FR-080] Make module disableable via config flag — File: src/core/composition/index.ts · Verify: disabled module does not block deploy
-- [ ] T160 [FR-080] Wire `qm compose validate` — File: src/cli/commands/compose.ts · Verify: validation runs from CLI
-- [ ] T161 [FR-080] Test: mismatch/cycle reported before run; core deploy unaffected when disabled — File: tests/unit/composition.test.ts · Verify: assertions green
-- [ ] T162 [FR-080] Document optional status + disable switch — File: README.md · Verify: composition documented as optional
+- [x] T155 [FR-080] Define Noun/Verb/Adjective composability model types — File: src/core/composition/model.ts · Verify ✅: model exports compile; `bun run typecheck` green.
+- [x] T156 [FR-080] Validate chained input/output compatibility — File: src/core/composition/validate.ts · Verify ✅: mismatch is reported as `incompatible-io`.
+- [x] T157 [FR-080] Detect cycles in a chain (acyclic check) — File: src/core/composition/validate.ts · Verify ✅: cyclic edge set reports `cycle`.
+- [x] T158 [FR-080] Modifier (adjective) attaches only to enhanceable artifacts — File: src/core/composition/validate.ts · Verify ✅: adjective attachment to non-enhanceable target reports `invalid-adjective-attachment`.
+- [x] T159 [FR-080] Make module disableable via config flag — File: src/core/composition/index.ts · Verify ✅: `composition.enabled=false` returns `disabled:true` and `bun test tests/integration/deploy-preview.test.ts` remains green.
+- [x] T160 [FR-080] Wire `qm compose validate` — File: src/cli/commands/compose.ts · Verify ✅: CLI validation runs from `qm compose validate <chain.json> --json`; command appears in help.
+- [x] T161 [FR-080] Test: mismatch/cycle reported before run; core deploy unaffected when disabled — File: tests/unit/composition.test.ts · Verify ✅: `bun test tests/unit/composition.test.ts` green and deploy-preview green.
+- [x] T162 [FR-080] Document optional status + disable switch — File: README.md · Verify ✅: README documents optional composition and `composition.enabled` / `QM_COMPOSITION_ENABLED`.
 
 ---
 

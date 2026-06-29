@@ -7,6 +7,7 @@
 
 import { auditCommand } from './commands/audit';
 import { listCommand } from './commands/catalog';
+import { composeCommand } from './commands/compose';
 import { configCommand } from './commands/config';
 import { deployCommand, rollbackCommand } from './commands/deploy';
 import { importCommand } from './commands/import';
@@ -45,6 +46,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061', handler: statusCommand },
   profile: { summary: 'Manage harness profiles', fr: 'FR-020..023', handler: profileCommand },
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050', handler: newCommand },
+  compose: { summary: 'Validate optional artifact composition chains', fr: 'FR-080', handler: composeCommand },
   loadout: { summary: 'Manage loadouts', fr: 'FR-090..094' },
   pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },
   eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105' },
