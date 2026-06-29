@@ -13,7 +13,7 @@ export interface GitLogEntry {
 
 export async function isGitAvailable(): Promise<boolean> {
   try {
-    await runGit(['--version']);
+    await runGit(['--version'], { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -56,6 +56,23 @@ export async function gitCheckout(dir: string, ref: string): Promise<void> {
   await runGit(['-C', dir, 'checkout', ref], { timeout: 10000 });
 }
 
+/**
+ * Resolve a remote ref to its SHA without cloning, via `git ls-remote`.
+ * Works for any git host (incl. GitHub over https) — no API token, no rate limit.
+ * Returns null on failure (offline, unreachable, unknown ref).
+ */
+export async function gitLsRemote(url: string, ref = 'HEAD'): Promise<string | null> {
+  try {
+    const { stdout } = await runGit(['ls-remote', url, ref], { timeout: 20000 });
+    const line = stdout.trim().split('\n')[0];
+    if (!line) return null;
+    const sha = line.split(/\s+/)[0];
+    return sha && /^[0-9a-f]{7,40}$/.test(sha) ? sha : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function gitCurrentRef(dir: string): Promise<string | null> {
   try {
     const { stdout } = await runGit(['-C', dir, 'rev-parse', 'HEAD'], { timeout: 5000 });
@@ -76,13 +93,14 @@ export async function gitCurrentBranch(dir: string): Promise<string | null> {
   }
 }
 
-async function runGit(
+// NOTE: runGit must NOT call isGitAvailable() — isGitAvailable() calls runGit(),
+// so a pre-check here causes infinite mutual recursion (which previously made
+// every git operation silently fail). Missing git is detected via the spawn
+// 'error' handler (ENOENT) instead.
+function runGit(
   args: string[],
   opts?: { timeout?: number },
 ): Promise<{ stdout: string; stderr: string }> {
-  const available = await isGitAvailable();
-  if (!available) throw new GitNotAvailableError();
-
   return new Promise((resolve, reject) => {
     const proc = spawn('git', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -104,9 +122,10 @@ async function runGit(
       else reject(new GitError(args.join(' '), code ?? -1, stderr));
     });
 
-    proc.on('error', (err) => {
+    proc.on('error', (err: NodeJS.ErrnoException) => {
       if (timer) clearTimeout(timer);
-      reject(new GitError(args.join(' '), -1, err.message));
+      if (err.code === 'ENOENT') reject(new GitNotAvailableError());
+      else reject(new GitError(args.join(' '), -1, err.message));
     });
   });
 }

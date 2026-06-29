@@ -137,17 +137,17 @@ Depends on: Phase 1. Records where artifacts come from and keeps them current.
 
 ### FR-012 — Check upstream currency: unchanged / ahead / conflict
 > ⚠ Confirmed unimplemented today (`sync.ts:98-104`, `git.ts:64/73` all return null). The conflict *model* is undecided, not just unwritten.
-- [ ] T051a [FR-012] SPIKE — decide sync/conflict model: revision-compare strategy, local-modification detection (import-hash vs current content), what constitutes "ahead" vs "conflict", and confirm-to-overwrite semantics. Write decision doc. — File: specs/001-quartermaster/design/sync-model.md · Verify: doc defines the three states + detection method + overwrite gate; downstream T052–T064 may be reclassified per this decision
-- [ ] T052 [FR-012] Implement `fetchUpstreamRef` for git (currently returns null) — File: src/core/sources/sync.ts · Verify: returns real remote revision for git fixture
-- [ ] T053 [FR-012] Implement `fetchUpstreamRef` for github/marketplace — File: src/core/sources/sync.ts · Verify: returns upstream ref for github fixture
-- [ ] T054 [FR-012] Compute per-artifact status: unchanged / ahead / conflict (upstream advanced + local edit) — File: src/core/sources/sync.ts · Verify: advanced upstream + local edit → ahead + conflict
-- [ ] T055 [FR-012] Detect local modification via stored import hash vs current content — File: src/core/sources/sync.ts · Verify: edited artifact flagged locally-modified
-- [ ] T056 [FR-012] Wire `qm sync --check` (report only) — File: src/cli/commands/sync.ts · Verify: report lists per-artifact status
-- [ ] T057 [FR-012] Test the acceptance scenario exactly — File: tests/integration/sync.test.ts · Verify: ahead+conflict case asserted
+- [x] T051a [FR-012] SPIKE — decide sync/conflict model: revision-compare strategy, local-modification detection (import-hash vs current content), what constitutes "ahead" vs "conflict", and confirm-to-overwrite semantics. Write decision doc. — File: specs/001-quartermaster/design/sync-model.md · Verify: doc defines the three states + detection method + overwrite gate; downstream T052–T064 may be reclassified per this decision
+- [x] T052 [FR-012] Implement `fetchUpstreamRef` for git — File: src/core/sources/sync.ts, git.ts · Verify ✅: `gitLsRemote` resolves a local repo HEAD to its SHA (test). ⚠ Also fixed a pre-existing bug: `runGit`↔`isGitAvailable` infinite recursion made ALL git ops silently fail.
+- [x] T053 [FR-012] Implement `fetchUpstreamRef` for github — File: src/core/sources/sync.ts · Verify ✅: github resolved via `git ls-remote https://github.com/{owner}/{repo}` (no API token / rate limit, per spike). marketplace/local have no upstream ref.
+- [x] T054 [FR-012] Classify unchanged / ahead / conflict — File: src/core/sources/sync.ts · Verify ✅: `checkUpstreams` (read-only) test asserts all three states.
+- [~] T055 [FR-012] Detect local modification via import hash vs current content — File: src/core/sources/sync.ts · `isLocallyModified` (hash vs `metadata.importedHash`) DONE + tested. Storing `importedHash` at import time is pending in importers.ts (T044).
+- [ ] T056 [FR-012] Wire `qm sync --check` (report only) — File: src/cli/commands/sync.ts · Pending command wiring (checkUpstreams ready).
+- [x] T057 [FR-012] Test the unchanged/ahead/conflict scenario — File: tests/integration/sync.test.ts · Verify ✅: rewritten against real API with a local git repo; 2 tests green.
 
 ### FR-013 — Update clean upstreams; never silently overwrite local edits
 - [ ] T058 [FR-013] Update artifacts with advanced upstream AND no local mod — File: src/core/sources/sync.ts · Verify: clean artifact updated to new revision
-- [ ] T059 [FR-013] Block overwrite of locally modified artifacts without `--confirm` — File: src/core/sources/sync.ts · Verify: modified artifact untouched without confirm
+- [x] T059 [FR-013] Block overwrite of locally modified artifacts without `--confirm` — File: src/core/sources/sync.ts · Verify ✅: `syncUpstreams` reports modified+advanced as conflict and skips unless `opts.confirm`; never silently overwrites.
 - [ ] T060 [FR-013] Wire `qm sync` + `qm sync --confirm` — File: src/cli/commands/sync.ts · Verify: confirm flag applies overwrite, default does not
 - [ ] T061 [FR-013] Test: locally modified never silently overwritten — File: tests/integration/sync.test.ts · Verify: assertion passes
 
