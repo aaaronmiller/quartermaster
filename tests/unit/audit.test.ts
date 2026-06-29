@@ -159,3 +159,22 @@ describe('matrix and overrides (FR-033/034)', () => {
     repo.close();
   });
 });
+
+describe('self-authored audit parity (FR-051)', () => {
+  test('self-authored hooks are audited by the same capability/profile rules as imported hooks', () => {
+    const hook = artifact({
+      id: 'self-hook',
+      type: 'hook',
+      name: 'Self Hook',
+      path: '/library/hooks/preflight.hook.yaml',
+      organizationalPath: 'hooks',
+      source: { kind: 'self', path: '/library/hooks/preflight.hook.yaml' },
+      capabilities: [{ type: 'hooks', dialect: 'claude' }],
+      provenance: 'self:/library/hooks/preflight.hook.yaml',
+    });
+    const codex = loadBuiltInProfiles().find((p) => p.id === 'codex')!;
+    const claude = loadBuiltInProfiles().find((p) => p.id === 'claude-code')!;
+    expect(computeVerdict(hook, codex).verdict).toBe('incompatible');
+    expect(computeVerdict(hook, claude).verdict).toBe('deployable');
+  });
+});

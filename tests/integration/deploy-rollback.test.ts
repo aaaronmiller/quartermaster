@@ -133,3 +133,47 @@ test('failed placement rolls back earlier successful placements', async () => {
   expect(result.operations.map((op) => op.status)).toEqual(['placed', 'failed']);
   expect(existsSync(target)).toBe(false);
 });
+
+test('qm status reports placements, drift, and orphaned files', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qm-status-'));
+  const dbPath = join(dir, 'catalog.sqlite');
+  const profileDir = join(dir, 'profiles');
+  const libraryDir = join(dir, 'library');
+  const targetDir = join(dir, 'target');
+  const source = join(libraryDir, 'SKILL.md');
+  const target = join(targetDir, 'SKILL.md');
+  const orphan = join(targetDir, 'orphan.md');
+  mkdirSync(libraryDir, { recursive: true });
+  writeFileSync(source, '# status source\n');
+  writeDeployProfile(profileDir, targetDir);
+  const repo = new Repository({ dbPath });
+  repo.upsertArtifact(artifact(source));
+  repo.close();
+
+  const env = { ...process.env, QM_DB_PATH: dbPath, QM_PROFILE_DIR: profileDir };
+  execFileSync('bun', ['src/cli/index.ts', 'deploy', 'rollback-profile', '--yes', '--json'], {
+    cwd: process.cwd(),
+    env,
+  });
+  const first = JSON.parse(
+    execFileSync('bun', ['src/cli/index.ts', 'status', 'rollback-profile', '--json'], {
+      cwd: process.cwd(),
+      env,
+      encoding: 'utf8',
+    }),
+  ) as { data: { deployed: Array<{ method: string; inSync: boolean }>; orphaned: string[] } };
+  expect(first.data.deployed[0]?.method).toBe('copy');
+  expect(first.data.deployed[0]?.inSync).toBe(true);
+
+  writeFileSync(target, '# edited target\n');
+  writeFileSync(orphan, '# orphan\n');
+  const second = JSON.parse(
+    execFileSync('bun', ['src/cli/index.ts', 'status', 'rollback-profile', '--json'], {
+      cwd: process.cwd(),
+      env,
+      encoding: 'utf8',
+    }),
+  ) as { data: { deployed: Array<{ inSync: boolean }>; orphaned: string[] } };
+  expect(second.data.deployed[0]?.inSync).toBe(false);
+  expect(second.data.orphaned).toContain(orphan);
+});

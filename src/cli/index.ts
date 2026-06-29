@@ -10,8 +10,10 @@ import { listCommand } from './commands/catalog';
 import { configCommand } from './commands/config';
 import { deployCommand, rollbackCommand } from './commands/deploy';
 import { importCommand } from './commands/import';
+import { newCommand } from './commands/new';
 import { profileCommand } from './commands/profile';
 import { scanCommand } from './commands/scan';
+import { statusCommand } from './commands/status';
 import { pinCommand, syncCommand, unpinCommand } from './commands/sync';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
 
@@ -40,9 +42,9 @@ const COMMANDS: Record<string, CommandSpec> = {
   plan: { summary: 'Dry-run a deployment plan', fr: 'FR-040,045' },
   deploy: { summary: 'Apply a deployment plan', fr: 'FR-040..048', handler: deployCommand },
   rollback: { summary: 'Reverse a recorded deployment', fr: 'FR-046', handler: rollbackCommand },
-  status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061' },
+  status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061', handler: statusCommand },
   profile: { summary: 'Manage harness profiles', fr: 'FR-020..023', handler: profileCommand },
-  new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050' },
+  new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050', handler: newCommand },
   loadout: { summary: 'Manage loadouts', fr: 'FR-090..094' },
   pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },
   eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105' },

@@ -287,13 +287,13 @@ Depends on: Phase 4 (verdicts). The riskiest, most-decomposed phase — disk-mut
 Depends on: Phases 1, 4, 5. Mostly confirming the same path applies.
 
 ### FR-050 — Create/edit artifacts in any subfolder, every type
-- [ ] T135 [FR-050] Wire `qm new <type> <path>` scaffold into library subfolder — File: src/cli/commands/new.ts · Verify: new skill in subfolder created
-- [ ] T136 [FR-050] Newly authored artifact is cataloged on next scan and becomes deployable — File: src/core/catalog/scanner.ts · Verify: scaffolded skill appears in catalog + plan
-- [ ] T137 [FR-050] Test scaffold→catalog→deployable — File: tests/integration/scan.test.ts · Verify: assertion passes
+- [x] T135 [FR-050] Wire `qm new <type> <path>` scaffold into library subfolder — File: src/cli/commands/new.ts · Verify ✅: `qm new skill research/my-skill/SKILL.md` creates a self-authored skill in configured root.
+- [x] T136 [FR-050] Newly authored artifact is cataloged on next scan and becomes deployable — File: src/core/catalog/scanner.ts · Verify ✅: scan catalogs scaffolded skill and audit verdict is not incompatible.
+- [x] T137 [FR-050] Test scaffold→catalog→deployable — File: tests/integration/scan.test.ts · Verify ✅: assertion passes.
 
 ### FR-051 — Self-authored treated identically to imported
-- [ ] T138 [FR-051] Confirm audit/transform/deploy treat self-authored == imported — File: src/core/audit/auditor.ts · Verify: self-authored hook audited like imported hook
-- [ ] T139 [FR-051] Test: self-authored hook audited against each harness's hook support — File: tests/unit/audit.test.ts · Verify: assertion passes
+- [x] T138 [FR-051] Confirm audit/transform/deploy treat self-authored == imported — File: src/core/audit/auditor.ts · Verify ✅: self-authored hook uses same capability/profile verdict rules as any other artifact.
+- [x] T139 [FR-051] Test: self-authored hook audited against each harness's hook support — File: tests/unit/audit.test.ts · Verify ✅: Claude Code deployable, Codex incompatible for self-authored hook.
 
 ---
 
@@ -301,15 +301,15 @@ Depends on: Phases 1, 4, 5. Mostly confirming the same path applies.
 Depends on: Phase 5 (records). `status.ts` exists; verify against reality.
 
 ### FR-060 — Report deployed artifacts, method, in-sync vs drifted
-- [ ] T140 [FR-060] Audit `status.ts`: list deployed artifacts per harness with method — File: src/core/deploy/status.ts · Verify: status lists placements + link/copy
-- [ ] T141 [FR-060] Drift detection: compare deployed content vs library source — File: src/core/deploy/status.ts · Verify: out-of-band target edit flagged as drift
-- [ ] T142 [FR-060] Wire `qm status <harness>` (+ `--json`) — File: src/cli/commands/status.ts · Verify: status report renders
-- [ ] T143 [FR-060] Test: out-of-band change flagged — File: tests/integration/deploy-rollback.test.ts · Verify: drift assertion passes
+- [x] T140 [FR-060] Audit `status.ts`: list deployed artifacts per harness with method — File: src/core/deploy/status.ts · Verify ✅: status lists deployed placement with `copy` method.
+- [x] T141 [FR-060] Drift detection: compare deployed content vs library source — File: src/core/deploy/status.ts · Verify ✅: out-of-band target edit flips `inSync` to false.
+- [x] T142 [FR-060] Wire `qm status <harness>` (+ `--json`) — File: src/cli/commands/status.ts · Verify ✅: `qm status rollback-profile --json` renders report.
+- [x] T143 [FR-060] Test: out-of-band change flagged — File: tests/integration/deploy-rollback.test.ts · Verify ✅: drift assertion passes.
 
 ### FR-061 — Detect orphaned deployments
-- [ ] T144 [FR-061] Detect target artifacts no longer in library — File: src/core/deploy/status.ts · Verify: removing library artifact surfaces prior deploy as orphaned
-- [ ] T145 [FR-061] Surface orphans in `qm status` — File: src/cli/commands/status.ts · Verify: orphan listed in next status check
-- [ ] T146 [FR-061] Test orphan detection — File: tests/integration/deploy-rollback.test.ts · Verify: assertion passes
+- [x] T144 [FR-061] Detect target artifacts no longer in library — File: src/core/deploy/status.ts · Verify ✅: unaccounted target file is detected as orphaned.
+- [x] T145 [FR-061] Surface orphans in `qm status` — File: src/cli/commands/status.ts · Verify ✅: orphan appears in CLI JSON.
+- [x] T146 [FR-061] Test orphan detection — File: tests/integration/deploy-rollback.test.ts · Verify ✅: assertion passes.
 
 ---
 

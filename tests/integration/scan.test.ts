@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { computeVerdict } from '../../src/core/audit/auditor';
 import { rescanIncremental, scanRoots } from '../../src/core/catalog/scanner';
+import { loadBuiltInProfiles } from '../../src/core/profiles/profile-registry';
 import type { ArtifactType } from '../../src/core/types';
 import { copyFixtureLibrary, tempRepo } from '../helpers';
 
@@ -59,6 +62,25 @@ describe('scan (FR-001 / FR-002 / FR-005)', () => {
     const r = await rescanIncremental(repo);
     expect(r.changed.length).toBe(1);
     expect(r.removed.length).toBe(0);
+    repo.close();
+  });
+
+  test('qm new skill scaffolds into a subfolder, scans, and audits as deployable (FR-050)', async () => {
+    const { repo, dir } = tempRepo();
+    const root = join(dir, 'library');
+    execFileSync(
+      'bun',
+      ['src/cli/index.ts', 'new', 'skill', 'research/my-skill/SKILL.md', '--json'],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, QM_ROOTS: root, QM_DB_PATH: join(dir, 'catalog.sqlite') },
+      },
+    );
+    await scanRoots([root], repo);
+    const skill = repo.listArtifacts().find((artifact) => artifact.name === 'SKILL');
+    expect(skill?.organizationalPath).toBe('research/my-skill');
+    const custom = loadBuiltInProfiles().find((profile) => profile.id === 'claude-code')!;
+    expect(computeVerdict(skill!, custom).verdict).not.toBe('incompatible');
     repo.close();
   });
 });
