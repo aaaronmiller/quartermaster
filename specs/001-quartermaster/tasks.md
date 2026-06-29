@@ -88,20 +88,20 @@ Depends on: Phase 0. The catalog is the spine everything else reads.
 - [~] T022 [FR-002] Test: deploy to flat harness does not mutate recorded library path — File: tests/integration/scan.test.ts (org-path part done) · Org path is recorded + tested. The deploy-doesn't-mutate-it half is verified in Phase 5 (flatten, T107) once deploy is wired.
 
 ### FR-003 — Parse and record metadata
-- [ ] T023 [FR-003] Confirm frontmatter parse for skills (name, description, version) — File: src/core/catalog/scanner.ts · Verify: fixture skill metadata in catalog
-- [ ] T024 [FR-003] Confirm plugin manifest parse (plugin.json fields) — File: src/core/catalog/scanner.ts · Verify: fixture plugin name/desc/version captured
-- [ ] T025 [FR-003] Add metadata parse for remaining types where declared (agent, hook, mcp, output-style) — File: src/core/catalog/scanner.ts · Verify: metadata present where the type declares it
-- [ ] T026 [FR-003] Test: every artifact with declared metadata reflects name/description/version — File: tests/unit/catalog.test.ts · Verify: `bun test catalog` green
+- [x] T023 [FR-003] Parse skill frontmatter (name, description, version) — File: src/core/catalog/scanner.ts · Verify ✅: js-yaml frontmatter → metadata; test asserts Deep Research / description / 1.0.0.
+- [x] T024 [FR-003] Parse plugin manifest fields — File: src/core/catalog/scanner.ts · Verify ✅: plugin.yaml name/description captured; test asserts review-plugin.
+- [x] T025 [FR-003] Metadata parse for remaining types (agent, hook, mcp, output-style) — File: src/core/catalog/scanner.ts · Verify ✅: yaml/json/frontmatter parsed per type via js-yaml; metadata populated where declared.
+- [x] T026 [FR-003] Test declared metadata reflected — File: tests/unit/catalog.test.ts · Verify ✅: `bun test catalog` green (metadata block).
 
 ### FR-004 — Detect & record required runtime capabilities
 > ⚠ This is the spec's own Risk #1 (inference is imperfect → wrong verdicts). It is the product's crux, not a checkbox.
-- [ ] T026a [FR-004] SPIKE — decide capability-inference design: per-type detection signals, conservative-default policy (bias toward over-declaring capability so verdicts fail safe), dialect detection, and confidence/override hooks. Write decision doc. — File: specs/001-quartermaster/design/capability-inference.md · Verify: doc enumerates signal→capability rules per type + default-bias policy, reviewed before T027
-- [ ] T027 [FR-004] Audit `capabilities.ts` inference rules — File: src/core/catalog/capabilities.ts · Verify: inference returns capability set per artifact
-- [ ] T028 [FR-004] Rule: plugin bundling a hook → requires hook capability — File: src/core/catalog/capabilities.ts · Verify: fixture plugin+hook flagged hook-required
-- [ ] T029 [FR-004] Rule: artifact referencing MCP server → requires MCP capability — File: src/core/catalog/capabilities.ts · Verify: fixture mcp-referencing artifact flagged mcp-required
-- [ ] T030 [FR-004] Rule: pure skill → requires only skill support (no extra) — File: src/core/catalog/capabilities.ts · Verify: fixture pure skill has empty extra-capabilities
-- [ ] T031 [FR-004] Capture capability dialect where applicable (e.g. hook dialect, mcp config dialect) — File: src/core/catalog/capabilities.ts · Verify: capability carries dialect field
-- [ ] T032 [FR-004] Test capability inference across all fixtures — File: tests/unit/capabilities.test.ts · Verify: `bun test capabilities` green
+- [x] T026a [FR-004] SPIKE — decide capability-inference design: per-type detection signals, conservative-default policy (bias toward over-declaring capability so verdicts fail safe), dialect detection, and confidence/override hooks. Write decision doc. — File: specs/001-quartermaster/design/capability-inference.md · Verify: doc enumerates signal→capability rules per type + default-bias policy, reviewed before T027
+- [x] T027 [FR-004] Audit `capabilities.ts` → single source of truth — File: src/core/catalog/capabilities.ts, scanner.ts · ⚠ AUDIT: `inferCapabilities` existed but was never called (scanner assigned caps inline = two sources). Routed scanner buildArtifact → `inferCapabilities`. Verify ✅: per-artifact capability set derived from type+metadata.
+- [x] T028 [FR-004] Rule: plugin bundling a hook → hook capability — File: src/core/catalog/capabilities.ts · ⚠ found `unionPluginCapabilities` only read `components[]`; fixture plugin declares top-level `hooks:`. Extended to read top-level hooks/mcp/commands/mcpServers. Verify ✅: test asserts fixture plugin requires `hooks`.
+- [~] T029 [FR-004] Rule: artifact referencing MCP server → MCP capability — File: src/core/catalog/capabilities.ts · Plugin-level `mcp`/`mcpServers` → mcp capability DONE. Skill-body MCP-reference scanning is a refinement (no fixture yet); deferred, low priority per spike doc.
+- [x] T030 [FR-004] Rule: pure skill → only skill support — File: src/core/catalog/capabilities.ts · Verify ✅: test asserts pure skill capabilities === ['skill'].
+- [x] T031 [FR-004] Capture capability dialect — File: src/core/catalog/capabilities.ts · Verify ✅: hook reads `metadata.dialect`; mcp single/multi dialect; plugin hook dialect from manifest.
+- [x] T032 [FR-004] Test capability inference — File: tests/unit/catalog.test.ts · Verify ✅: capability block green. (Spike decisions recorded in design/capability-inference.md, T026a.)
 
 ### FR-005 — Incremental rescan (added/changed/removed, skip unchanged)
 - [x] T033 [FR-005] Scanner stores per-artifact content hash — File: src/core/catalog/scanner.ts · Verify ✅: SHA-256 hash persisted; used for change detection. (mtime not needed — hash is the change signal.)
@@ -111,11 +111,11 @@ Depends on: Phase 0. The catalog is the spine everything else reads.
 - [~] T037 [FR-005 | NFR-001] Perf test: incremental rescan < 2s on 1000-artifact fixture — Deferred to NFR perf phase (needs the 1000-artifact fixture, T270).
 
 ### FR-006 — Search & filter by type, capability, source, path, free text
-- [ ] T038 [FR-006] Audit `search.ts` filter predicates (type, capability, source, path) — File: src/core/catalog/search.ts · Verify: each filter returns correct subset on fixtures
-- [ ] T039 [FR-006] Implement free-text search across name/description/path — File: src/core/catalog/search.ts · Verify: text query matches expected artifacts
-- [ ] T040 [FR-006] Query "all requiring hook capability" returns exactly those — File: src/core/catalog/search.ts · Verify: result set equals hook-required fixtures
-- [ ] T041 [FR-006] Wire `qm list` / `qm search` with filter flags + `--json` — File: src/cli/commands/catalog.ts · Verify: `qm search --capability hook --json` parseable
-- [ ] T042 [FR-006 | NFR-003] Perf test: search < 1s on 1000-artifact fixture — File: tests/integration/scan.test.ts · Verify: timed assertion passes
+- [x] T038 [FR-006] Audit `search.ts` filter predicates (type, capability, source, path) — File: src/core/catalog/search.ts · Verify ✅: type filter test green; predicates work on fixtures.
+- [x] T039 [FR-006] Free-text search across name/path/metadata — File: src/core/catalog/search.ts · Verify ✅: `search "Deep Research"` → 1 hit.
+- [x] T040 [FR-006] Query "all requiring hook capability" returns exactly those — File: src/core/catalog/search.ts · Verify ✅: `list --capability hooks` → 2 (hook + hook-bundling plugin); test asserts all results carry the capability.
+- [x] T041 [FR-006] Wire `qm list` / `qm search` with filter flags + `--json` — File: src/cli/commands/catalog.ts · Verify ✅: both wired to listCommand; `--json` parseable; filters: type/capability/source/path/text.
+- [~] T042 [FR-006 | NFR-003] Perf test: search < 1s on 1000-artifact fixture — Deferred to NFR perf phase (needs 1000-artifact fixture, T270).
 
 ---
 

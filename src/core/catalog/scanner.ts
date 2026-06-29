@@ -12,6 +12,7 @@ import { basename, dirname, relative } from 'node:path';
 import type { Artifact, ArtifactType, ScanResult } from '@core/types';
 import type { Repository } from '@storage/repository';
 import { load as parseYaml } from 'js-yaml';
+import { inferCapabilities } from './capabilities';
 
 export interface ScannerOptions {
   /** Maximum directory depth. Default: 100 */
@@ -363,7 +364,7 @@ function buildArtifact(
   organizationalPath: string,
 ): Artifact {
   const now = new Date().toISOString();
-  return {
+  const artifact: Artifact = {
     id: hash.slice(0, 16),
     type: detected.type,
     name: detected.name,
@@ -378,6 +379,10 @@ function buildArtifact(
     updatedAt: now,
     provenance: `local:${filePath}`,
   };
+  // Single source of truth for capabilities (FR-004, design/capability-inference.md):
+  // derive from type + parsed metadata rather than trusting detection-time guesses.
+  artifact.capabilities = inferCapabilities(artifact);
+  return artifact;
 }
 
 export class ScannerError extends Error {

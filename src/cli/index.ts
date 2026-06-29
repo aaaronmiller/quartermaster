@@ -5,6 +5,7 @@
 // returns an honest "not implemented" envelope (never a fake success).
 // ─────────────────────────────────────────────────────────────
 
+import { listCommand } from './commands/catalog';
 import { configCommand } from './commands/config';
 import { scanCommand } from './commands/scan';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
@@ -24,6 +25,8 @@ interface CommandSpec {
 /** The command registry — single source of truth for dispatch and `--help`. */
 const COMMANDS: Record<string, CommandSpec> = {
   scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006', handler: scanCommand },
+  list: { summary: 'List/filter catalog (by type, capability, source, path)', fr: 'FR-006', handler: listCommand },
+  search: { summary: 'Free-text search the catalog', fr: 'FR-006', handler: listCommand },
   import: { summary: 'Import artifacts from a source', fr: 'FR-010..014' },
   sync: { summary: 'Check or update upstreams', fr: 'FR-012..014' },
   audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034' },

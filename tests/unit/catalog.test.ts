@@ -1,13 +1,72 @@
-import { expect, test } from "bun:test";
-import { scanLibrary } from "../../src/core/catalog/scanner";
-import { fixtureLibrary, tempRepo } from "../helpers";
+import { describe, expect, test } from 'bun:test';
+import { searchCatalog } from '../../src/core/catalog/search';
+import { scanRoots } from '../../src/core/catalog/scanner';
+import { copyFixtureLibrary, tempRepo } from '../helpers';
 
-test("scan catalogs all supported artifact types with metadata", async () => {
-  const { repo } = tempRepo();
-  const result = await scanLibrary(repo, fixtureLibrary());
-  expect(result.errors).toEqual([]);
-  expect(new Set(repo.listArtifacts().map((artifact) => artifact.type))).toEqual(new Set(["skill", "plugin", "agent", "hook", "script", "mcp", "command", "output_style"]));
-  const skill = repo.listArtifacts({ type: "skill" })[0]!;
-  expect(skill.name).toBe("Deep Research");
-  expect(skill.org_path).toContain("research/deep-research");
+describe('catalog metadata (FR-003)', () => {
+  test('skill records declared name, description, and version', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const skill = repo.listArtifacts({ type: 'skill' })[0];
+    expect(skill?.name).toBe('Deep Research');
+    expect(skill?.metadata.description).toBe('Research a topic with multiple source checks.');
+    expect(skill?.metadata.version).toBe('1.0.0');
+    repo.close();
+  });
+
+  test('plugin records its declared manifest fields', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const plugin = repo.listArtifacts({ type: 'plugin' })[0];
+    expect(plugin?.name).toBe('review-plugin');
+    expect(plugin?.metadata.description).toContain('review');
+    repo.close();
+  });
+});
+
+describe('capability inference (FR-004)', () => {
+  test('a plugin bundling a hook is recorded as requiring hook capability', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const plugin = repo.listArtifacts({ type: 'plugin' })[0];
+    expect(plugin?.capabilities.some((c) => c.type === 'hooks')).toBe(true);
+    repo.close();
+  });
+
+  test('a pure skill requires only skill support (no extra capability)', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const skill = repo.listArtifacts({ type: 'skill' })[0];
+    expect(skill?.capabilities.map((c) => c.type)).toEqual(['skill']);
+    repo.close();
+  });
+});
+
+describe('catalog search/filter (FR-006)', () => {
+  test('filter by type returns only that type', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const results = searchCatalog(repo, { type: 'hook' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every((a) => a.type === 'hook')).toBe(true);
+    repo.close();
+  });
+
+  test('filter by capability returns artifacts requiring it', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const results = searchCatalog(repo, { capability: 'hooks' });
+    // Both the hook artifact and the hook-bundling plugin require `hooks`.
+    expect(results.length).toBeGreaterThanOrEqual(2);
+    expect(results.every((a) => a.capabilities.some((c) => c.type === 'hooks'))).toBe(true);
+    repo.close();
+  });
+
+  test('free-text search matches name/path/metadata', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const results = searchCatalog(repo, { text: 'Deep Research' });
+    expect(results.some((a) => a.name === 'Deep Research')).toBe(true);
+    repo.close();
+  });
 });

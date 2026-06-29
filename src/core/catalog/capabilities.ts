@@ -16,7 +16,7 @@ export function inferCapabilities(artifact: Artifact): Capability[] {
     case 'plugin':
       return inferPluginCapabilities(artifact);
     case 'hook':
-      return [{ type: 'hooks', dialect: 'claude' }];
+      return [{ type: 'hooks', dialect: (artifact.metadata?.dialect as string) ?? 'claude' }];
     case 'mcp-config':
       return inferMcpCapabilities(artifact);
     case 'script':
@@ -65,6 +65,21 @@ export function unionPluginCapabilities(manifest: Record<string, unknown>): Capa
       default:
         caps.push({ type: comp.type || 'unknown', dialect: 'plugin' });
     }
+  }
+
+  // Top-level capability declarations — a plugin may bundle a hook/mcp/command
+  // via a dedicated key rather than a `components[]` entry (FR-004). Detect both,
+  // biasing toward over-declaring (see design/capability-inference.md).
+  const has = (t: string) => caps.some((c) => c.type === t);
+  if (manifest.hooks && !has('hooks')) {
+    const hooks = manifest.hooks as { dialect?: string };
+    caps.push({ type: 'hooks', dialect: hooks?.dialect ?? 'plugin' });
+  }
+  if ((manifest.mcp || manifest.mcpServers) && !has('mcp')) {
+    caps.push({ type: 'mcp', dialect: 'plugin' });
+  }
+  if (manifest.commands && !has('commands')) {
+    caps.push({ type: 'commands', dialect: 'plugin' });
   }
 
   if (caps.length === 0) {
