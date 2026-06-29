@@ -108,6 +108,12 @@ export interface Artifact {
   name: string;
   /** Absolute or library-relative file path. */
   path: string;
+  /**
+   * Organizational subfolder path within the library, relative to its root
+   * (FR-002). Recorded independently of how any harness lays the artifact out;
+   * deployment transformations (e.g. flatten) never alter this.
+   */
+  organizationalPath: string;
   /** SHA-256 content hash of the file. */
   hash: string;
   /** File size in bytes. */

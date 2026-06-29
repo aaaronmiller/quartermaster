@@ -87,6 +87,17 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS artifacts;
     `,
   },
+  {
+    version: 2,
+    name: 'add-organizational-path',
+    up: `
+      ALTER TABLE artifacts ADD COLUMN organizationalPath TEXT NOT NULL DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_artifacts_orgpath ON artifacts(organizationalPath);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_artifacts_orgpath;
+    `,
+  },
 ];
 
 const CURRENT_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

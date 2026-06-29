@@ -73,12 +73,13 @@ export class Repository {
   /** Insert or update an artifact. */
   upsertArtifact(a: Artifact): void {
     const stmt = this.db.prepare(`
-      INSERT INTO artifacts (id, type, name, path, hash, size, metadata, source, capabilities,
+      INSERT INTO artifacts (id, type, name, path, organizationalPath, hash, size, metadata, source, capabilities,
                              importedAt, updatedAt, provenance, pinnedRevision, localModifications, riskFlags)
-      VALUES ($id, $type, $name, $path, $hash, $size, $metadata, $source, $capabilities,
+      VALUES ($id, $type, $name, $path, $organizationalPath, $hash, $size, $metadata, $source, $capabilities,
               $importedAt, $updatedAt, $provenance, $pinnedRevision, $localModifications, $riskFlags)
       ON CONFLICT(path) DO UPDATE SET
-        id = $id, type = $type, name = $name, hash = $hash, size = $size,
+        id = $id, type = $type, name = $name, organizationalPath = $organizationalPath,
+        hash = $hash, size = $size,
         metadata = $metadata, source = $source, capabilities = $capabilities,
         updatedAt = $updatedAt, provenance = $provenance,
         pinnedRevision = $pinnedRevision, localModifications = $localModifications,
@@ -90,6 +91,7 @@ export class Repository {
       a.type,
       a.name,
       a.path,
+      a.organizationalPath ?? '',
       a.hash,
       a.size,
       JSON.stringify(a.metadata),
@@ -438,6 +440,7 @@ function rowToArtifact(row: Record<string, unknown>): Artifact {
     type: row.type as Artifact['type'],
     name: row.name as string,
     path: row.path as string,
+    organizationalPath: (row.organizationalPath as string) ?? '',
     hash: row.hash as string,
     size: row.size as number,
     metadata: safeParseJSON(row.metadata as string | null | undefined, {}),

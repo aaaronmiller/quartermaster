@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { configCommand } from './commands/config';
+import { scanCommand } from './commands/scan';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
 
 const VERSION = '3.0.0';
@@ -22,7 +23,7 @@ interface CommandSpec {
 
 /** The command registry — single source of truth for dispatch and `--help`. */
 const COMMANDS: Record<string, CommandSpec> = {
-  scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006' },
+  scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006', handler: scanCommand },
   import: { summary: 'Import artifacts from a source', fr: 'FR-010..014' },
   sync: { summary: 'Check or update upstreams', fr: 'FR-012..014' },
   audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034' },

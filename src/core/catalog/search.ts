@@ -131,6 +131,7 @@ function rowToArtifact(row: Record<string, unknown>): Artifact {
     type: row.type as Artifact['type'],
     name: row.name as string,
     path: row.path as string,
+    organizationalPath: (row.organizationalPath as string) ?? '',
     hash: row.hash as string,
     size: row.size as number,
     metadata: safeParse(row.metadata as string | null, {}),
