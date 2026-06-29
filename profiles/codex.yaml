@@ -1,0 +1,31 @@
+name: codex
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.codex/skills/
+      project: .codex/skills/
+    flat: true
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.codex/plugins/
+      project: .codex/plugins/
+    flat: false
+    configFormat: json
+  - type: mcp-config
+    locations:
+      global: /home/cheta/.codex/mcp.json
+      project: .codex/mcp.json
+    flat: true
+    configFormat: json
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: mcp
+    dialects: [single-server, multi-server]
+  - type: plugin
+    dialects: [generic]
+deployment:
+  method: copy
+  crossDevice: true
+  priorStateBackup: true

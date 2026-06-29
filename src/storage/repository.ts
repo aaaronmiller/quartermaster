@@ -1,262 +1,485 @@
-import type { Database } from "bun:sqlite";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — SQLite Repository
+// ─────────────────────────────────────────────────────────────
+
+import { Database } from 'bun:sqlite';
 import type {
   Artifact,
-  AuditFinding,
-  CompatibilityVerdict,
+  ArtifactType,
   DeploymentRecord,
   EvaluationProposal,
-  GuidanceFile,
-  Loadout,
-  LoadoutAssignment,
-  Pipeline,
-  Source
-} from "../core/types";
+  LoadoutDefinition,
+  PipelineDefinition,
+} from '@core/types';
+import { MigrationError, runMigrations } from './migrations';
 
-const json = {
-  parse<T>(value: string): T {
-    return JSON.parse(value) as T;
-  },
-  stringify(value: unknown): string {
-    return JSON.stringify(value);
-  }
-};
+export interface ListArtifactOptions {
+  type?: ArtifactType;
+  root?: string;
+}
 
+export interface RepositoryConfig {
+  /** Path to the SQLite database file. Defaults to ~/.quartermaster/catalog.db */
+  dbPath?: string;
+}
+
+/**
+ * Default database path.
+ */
+function defaultDbPath(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || '~';
+  return `${home}/.quartermaster/catalog.db`;
+}
+
+/**
+ * SQLite-backed repository for Quartermaster's catalog,
+ * deployment logs, loadouts, pipelines, and proposals.
+ *
+ * Uses WAL mode for concurrent safety.
+ * Runs migrations on first construction.
+ */
 export class Repository {
-  constructor(private readonly db: Database) {}
+  public db: Database;
+  private basePath: string;
 
-  upsertSource(source: Source): void {
-    this.db
-      .query(`INSERT INTO sources VALUES (?,?,?,?,?,?,?)
-        ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, reference=excluded.reference,
-        ref_branch=excluded.ref_branch, imported_revision=excluded.imported_revision,
-        pin_revision=excluded.pin_revision, updated_at=excluded.updated_at`)
-      .run(source.id, source.kind, source.reference, source.ref_branch ?? null, source.imported_revision ?? null, source.pin_revision ?? null, source.updated_at);
+  constructor(config?: RepositoryConfig) {
+    this.basePath = config?.dbPath ?? defaultDbPath();
+
+    // Ensure directory exists
+    const dir = this.basePath.substring(0, this.basePath.lastIndexOf('/'));
+    try {
+      require('fs').mkdirSync(dir, { recursive: true });
+    } catch {
+      // directory may already exist
+    }
+
+    this.db = new Database(this.basePath);
+
+    // WAL mode for concurrent access safety
+    this.db.run('PRAGMA journal_mode = WAL');
+    this.db.run('PRAGMA foreign_keys = ON');
+
+    // Run pending migrations
+    try {
+      runMigrations(this.db);
+    } catch (err) {
+      this.db.close();
+      throw err;
+    }
   }
 
-  getSource(id: string): Source | null {
-    return (this.db.query("SELECT * FROM sources WHERE id = ?").get(id) as Source | null) ?? null;
+  // ── Artifact CRUD ─────────────────────────────────────────
+
+  /** Insert or update an artifact. */
+  upsertArtifact(a: Artifact): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO artifacts (id, type, name, path, hash, size, metadata, source, capabilities,
+                             importedAt, updatedAt, provenance, pinnedRevision, localModifications, riskFlags)
+      VALUES ($id, $type, $name, $path, $hash, $size, $metadata, $source, $capabilities,
+              $importedAt, $updatedAt, $provenance, $pinnedRevision, $localModifications, $riskFlags)
+      ON CONFLICT(path) DO UPDATE SET
+        id = $id, type = $type, name = $name, hash = $hash, size = $size,
+        metadata = $metadata, source = $source, capabilities = $capabilities,
+        updatedAt = $updatedAt, provenance = $provenance,
+        pinnedRevision = $pinnedRevision, localModifications = $localModifications,
+        riskFlags = $riskFlags
+    `);
+
+    stmt.run(
+      a.id,
+      a.type,
+      a.name,
+      a.path,
+      a.hash,
+      a.size,
+      JSON.stringify(a.metadata),
+      JSON.stringify(a.source),
+      JSON.stringify(a.capabilities),
+      a.importedAt,
+      a.updatedAt,
+      a.provenance ?? null,
+      a.pinnedRevision ?? null,
+      a.localModifications ? 1 : 0,
+      a.riskFlags ? JSON.stringify(a.riskFlags) : null,
+    );
   }
 
-  listSources(): Source[] {
-    return this.db.query("SELECT * FROM sources ORDER BY id").all() as Source[];
-  }
-
-  upsertArtifact(artifact: Artifact): void {
-    this.db
-      .query(`INSERT INTO artifacts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON CONFLICT(id) DO UPDATE SET type=excluded.type, name=excluded.name,
-        description=excluded.description, version=excluded.version, org_path=excluded.org_path,
-        abs_path=excluded.abs_path, content_hash=excluded.content_hash,
-        required_capabilities=excluded.required_capabilities, risk_flags=excluded.risk_flags,
-        source_id=excluded.source_id, is_self_authored=excluded.is_self_authored,
-        locally_modified=excluded.locally_modified, updated_at=excluded.updated_at`)
-      .run(
-        artifact.id,
-        artifact.type,
-        artifact.name,
-        artifact.description ?? null,
-        artifact.version ?? null,
-        artifact.org_path,
-        artifact.abs_path,
-        artifact.content_hash,
-        json.stringify(artifact.required_capabilities),
-        json.stringify(artifact.risk_flags),
-        artifact.source_id,
-        artifact.is_self_authored ? 1 : 0,
-        artifact.locally_modified ? 1 : 0,
-        artifact.updated_at
-      );
-  }
-
-  listArtifacts(filters: Partial<Pick<Artifact, "type" | "source_id">> & { text?: string; org_path?: string } = {}): Artifact[] {
-    const rows = this.db.query("SELECT * FROM artifacts ORDER BY org_path").all() as Record<string, unknown>[];
-    return rows.map(rowToArtifact).filter((artifact) => {
-      if (filters.type && artifact.type !== filters.type) return false;
-      if (filters.source_id && artifact.source_id !== filters.source_id) return false;
-      if (filters.org_path && !artifact.org_path.includes(filters.org_path)) return false;
-      if (filters.text) {
-        const haystack = `${artifact.name} ${artifact.description ?? ""} ${artifact.org_path}`.toLowerCase();
-        if (!haystack.includes(filters.text.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }
-
+  /** Get an artifact by ID. Returns null if not found. */
   getArtifact(id: string): Artifact | null {
-    const row = this.db.query("SELECT * FROM artifacts WHERE id = ?").get(id) as Record<string, unknown> | null;
+    const row = this.db.prepare('SELECT * FROM artifacts WHERE id = ?').get(id) as Record<
+      string,
+      unknown
+    > | null;
     return row ? rowToArtifact(row) : null;
   }
 
-  replaceArtifactsForRoot(root: string, artifacts: Artifact[]): void {
-    const keep = new Set(artifacts.map((artifact) => artifact.id));
-    for (const existing of this.listArtifacts()) {
-      if (existing.abs_path.startsWith(root) && !keep.has(existing.id)) {
-        this.db.query("DELETE FROM artifacts WHERE id = ?").run(existing.id);
-      }
+  /** Get an artifact by filesystem path. */
+  getArtifactByPath(path: string): Artifact | null {
+    const row = this.db.prepare('SELECT * FROM artifacts WHERE path = ?').get(path) as Record<
+      string,
+      unknown
+    > | null;
+    return row ? rowToArtifact(row) : null;
+  }
+
+  /** List all artifacts, optionally filtered. */
+  listArtifacts(opts?: ListArtifactOptions): Artifact[] {
+    let sql = 'SELECT * FROM artifacts';
+    const params: string[] = [];
+
+    if (opts?.type) {
+      sql += ' WHERE type = ?';
+      params.push(opts.type);
     }
-    for (const artifact of artifacts) this.upsertArtifact(artifact);
+
+    sql += ' ORDER BY name ASC';
+
+    const rows = this.db.prepare(sql).all(...params) as Record<string, unknown>[];
+    return rows.map(rowToArtifact);
   }
 
-  upsertVerdict(verdict: CompatibilityVerdict): void {
+  /** Delete an artifact by ID. Returns true if a row was deleted. */
+  deleteArtifact(id: string): boolean {
+    const result = this.db.prepare('DELETE FROM artifacts WHERE id = ?').run(id);
+    return (result.changes ?? 0) > 0;
+  }
+
+  /** Search artifacts by free-text query (matches name, path, and metadata). */
+  searchArtifacts(query: string): Artifact[] {
+    const like = `%${query}%`;
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM artifacts WHERE name LIKE ? OR path LIKE ? OR metadata LIKE ? ORDER BY name ASC`,
+      )
+      .all(like, like, like) as Record<string, unknown>[];
+    return rows.map(rowToArtifact);
+  }
+
+  /** Get total artifact count. */
+  totalArtifactCount(): number {
+    const row = this.db.prepare('SELECT COUNT(*) as cnt FROM artifacts').get() as {
+      cnt: number;
+    };
+    return row?.cnt ?? 0;
+  }
+
+  /** Check if a path is already cataloged. */
+  hasPath(path: string): boolean {
+    const row = this.db.prepare('SELECT 1 FROM artifacts WHERE path = ?').get(path);
+    return row !== undefined;
+  }
+
+  /** Get the hash for a known path. */
+  getHashByPath(path: string): string | null {
+    const row = this.db.prepare('SELECT hash FROM artifacts WHERE path = ?').get(path) as {
+      hash: string;
+    } | null;
+    return row?.hash ?? null;
+  }
+
+  // ── Deployment Logs ───────────────────────────────────────
+
+  /** Record a deployment attempt. */
+  recordDeployment(record: DeploymentRecord): void {
     this.db
-      .query(`INSERT INTO compatibility_verdicts VALUES (?,?,?,?,?,?,?)
-      ON CONFLICT(artifact_id,harness_id) DO UPDATE SET result=excluded.result, reason=excluded.reason,
-      transformation=excluded.transformation, override_note=excluded.override_note, computed_at=excluded.computed_at`)
-      .run(verdict.artifact_id, verdict.harness_id, verdict.result, verdict.reason, verdict.transformation, verdict.override_note ?? null, verdict.computed_at);
+      .prepare(
+        `INSERT INTO deployment_logs (id, timestamp, harness, plan, status)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(record.id, record.timestamp, record.harness, JSON.stringify(record.plan), record.status);
   }
 
-  listVerdicts(artifact_id?: string): CompatibilityVerdict[] {
-    const sql = artifact_id ? "SELECT * FROM compatibility_verdicts WHERE artifact_id = ? ORDER BY harness_id" : "SELECT * FROM compatibility_verdicts ORDER BY artifact_id,harness_id";
-    return (artifact_id ? this.db.query(sql).all(artifact_id) : this.db.query(sql).all()) as CompatibilityVerdict[];
+  /** List deployment records, optionally filtered by harness. */
+  getDeployments(harness?: string): DeploymentRecord[] {
+    let sql = 'SELECT * FROM deployment_logs';
+    const params: string[] = [];
+
+    if (harness) {
+      sql += ' WHERE harness = ?';
+      params.push(harness);
+    }
+
+    sql += ' ORDER BY timestamp DESC';
+
+    const rows = this.db.prepare(sql).all(...params) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      id: r.id as string,
+      timestamp: r.timestamp as string,
+      harness: r.harness as string,
+      plan: JSON.parse(r.plan as string),
+      status: r.status as DeploymentRecord['status'],
+    }));
   }
 
-  saveDeployment(record: DeploymentRecord): void {
-    this.db.query("INSERT OR REPLACE INTO deployment_records VALUES (?,?,?,?,?,?,?)").run(
-      record.id,
-      record.harness_id,
-      record.scope,
-      json.stringify(record.plan_snapshot),
-      record.applied_at,
-      json.stringify(record.operations),
-      record.prior_state_ref
-    );
+  /** Get the latest deployment for a harness, or null. */
+  getLatestDeployment(harness: string): DeploymentRecord | null {
+    const row = this.db
+      .prepare('SELECT * FROM deployment_logs WHERE harness = ? ORDER BY timestamp DESC LIMIT 1')
+      .get(harness) as Record<string, unknown> | null;
+
+    if (!row) return null;
+
+    return {
+      id: row.id as string,
+      timestamp: row.timestamp as string,
+      harness: row.harness as string,
+      plan: JSON.parse(row.plan as string),
+      status: row.status as DeploymentRecord['status'],
+    };
   }
 
-  getDeployment(id: string): DeploymentRecord | null {
-    const row = this.db.query("SELECT * FROM deployment_records WHERE id = ?").get(id) as Record<string, unknown> | null;
-    return row ? rowToDeployment(row) : null;
+  // ── Loadouts ──────────────────────────────────────────────
+
+  /** Create or update a loadout definition. */
+  upsertLoadout(def: LoadoutDefinition): void {
+    this.db
+      .prepare(
+        `INSERT INTO loadouts (name, harnesses, artifacts, pipelines, active)
+         VALUES ($name, $harnesses, $artifacts, $pipelines, $active)
+         ON CONFLICT(name) DO UPDATE SET
+           harnesses = $harnesses, artifacts = $artifacts,
+           pipelines = $pipelines, active = $active`,
+      )
+      .run(
+        def.name,
+        JSON.stringify(def.harnesses),
+        JSON.stringify(def.artifacts),
+        JSON.stringify(def.pipelines),
+        def.active ? 1 : 0,
+      );
   }
 
-  listDeployments(harness_id?: string): DeploymentRecord[] {
-    const rows = harness_id
-      ? this.db.query("SELECT * FROM deployment_records WHERE harness_id = ? ORDER BY applied_at DESC").all(harness_id)
-      : this.db.query("SELECT * FROM deployment_records ORDER BY applied_at DESC").all();
-    return (rows as Record<string, unknown>[]).map(rowToDeployment);
+  /** Get all loadouts. */
+  listLoadouts(): LoadoutDefinition[] {
+    const rows = this.db.prepare('SELECT * FROM loadouts').all() as Record<string, unknown>[];
+    return rows.map((r) => ({
+      name: r.name as string,
+      harnesses: JSON.parse(r.harnesses as string),
+      artifacts: JSON.parse(r.artifacts as string),
+      pipelines: r.pipelines ? JSON.parse(r.pipelines as string) : [],
+      active: (r.active as number) === 1,
+    }));
   }
 
-  saveLoadout(loadout: Loadout): void {
-    this.db.query("INSERT OR REPLACE INTO loadouts VALUES (?,?,?,?,?)").run(loadout.id, loadout.name, loadout.description ?? null, json.stringify(loadout.members), loadout.updated_at);
+  /** Get a loadout by name. */
+  getLoadout(name: string): LoadoutDefinition | null {
+    const row = this.db.prepare('SELECT * FROM loadouts WHERE name = ?').get(name) as Record<
+      string,
+      unknown
+    > | null;
+    if (!row) return null;
+    return {
+      name: row.name as string,
+      harnesses: JSON.parse(row.harnesses as string),
+      artifacts: JSON.parse(row.artifacts as string),
+      pipelines: row.pipelines ? JSON.parse(row.pipelines as string) : [],
+      active: (row.active as number) === 1,
+    };
   }
 
-  getLoadout(nameOrId: string): Loadout | null {
-    const row = this.db.query("SELECT * FROM loadouts WHERE id = ? OR name = ?").get(nameOrId, nameOrId) as Record<string, unknown> | null;
-    return row ? { ...row, members: json.parse(row.members as string) } as Loadout : null;
+  /** Delete a loadout by name. */
+  deleteLoadout(name: string): boolean {
+    const result = this.db.prepare('DELETE FROM loadouts WHERE name = ?').run(name);
+    return (result.changes ?? 0) > 0;
   }
 
-  listLoadouts(): Loadout[] {
-    return (this.db.query("SELECT * FROM loadouts ORDER BY name").all() as Record<string, unknown>[]).map((row) => ({ ...row, members: json.parse(row.members as string) }) as Loadout);
+  /** Activate a loadout for a harness (deactivates others for same harness). */
+  activateLoadout(_harness: string, name: string): void {
+    const run = this.db.transaction(() => {
+      // Deactivate all loadouts for this harness
+      const all = this.listLoadouts();
+      for (const l of all) {
+        if (l.harnesses.includes(_harness) && l.active) {
+          this.db.prepare('UPDATE loadouts SET active = 0 WHERE name = ?').run(l.name);
+        }
+      }
+      // Activate the target loadout
+      this.db.prepare('UPDATE loadouts SET active = 1 WHERE name = ?').run(name);
+    });
+    run();
   }
 
-  saveLoadoutAssignment(assignment: LoadoutAssignment): void {
-    this.db.query("INSERT OR REPLACE INTO loadout_assignments VALUES (?,?,?,?)").run(
-      assignment.harness_id,
-      assignment.loadout_id,
-      assignment.active ? 1 : 0,
-      assignment.assigned_at
-    );
+  // ── Pipelines ─────────────────────────────────────────────
+
+  /** Create or update a pipeline definition. */
+  upsertPipeline(p: PipelineDefinition): void {
+    this.db
+      .prepare(
+        `INSERT INTO pipelines (name, artifacts, directives)
+         VALUES ($name, $artifacts, $directives)
+         ON CONFLICT(name) DO UPDATE SET
+           artifacts = $artifacts, directives = $directives`,
+      )
+      .run(p.name, JSON.stringify(p.artifacts), JSON.stringify(p.directives));
   }
 
-  getLoadoutAssignment(harness_id: string): LoadoutAssignment | null {
-    const row = this.db.query("SELECT * FROM loadout_assignments WHERE harness_id = ?").get(harness_id) as Record<string, unknown> | null;
-    return row ? rowToLoadoutAssignment(row) : null;
+  /** Get a pipeline by name. */
+  getPipeline(name: string): PipelineDefinition | null {
+    const row = this.db.prepare('SELECT * FROM pipelines WHERE name = ?').get(name) as Record<
+      string,
+      unknown
+    > | null;
+    if (!row) return null;
+    return {
+      name: row.name as string,
+      artifacts: safeParseJSON(row.artifacts as string, []),
+      directives: safeParseJSON(row.directives as string, {}),
+    };
   }
 
-  listLoadoutAssignments(): LoadoutAssignment[] {
-    return (this.db.query("SELECT * FROM loadout_assignments ORDER BY harness_id").all() as Record<string, unknown>[]).map(rowToLoadoutAssignment);
+  /** List all pipelines. */
+  listPipelines(): PipelineDefinition[] {
+    const rows = this.db
+      .prepare('SELECT * FROM pipelines ORDER BY name ASC')
+      .all() as Record<string, unknown>[];
+    return rows.map((r) => ({
+      name: r.name as string,
+      artifacts: safeParseJSON(r.artifacts as string, []),
+      directives: safeParseJSON(r.directives as string, {}),
+    }));
   }
 
-  savePipeline(pipeline: Pipeline): void {
-    this.db.query("INSERT OR REPLACE INTO pipelines VALUES (?,?,?,?,?,?,?)").run(pipeline.id, pipeline.name, pipeline.use_case, pipeline.directive, pipeline.origin, json.stringify(pipeline.members), pipeline.updated_at);
+  /** Delete a pipeline by name. Returns true if a row was deleted. */
+  deletePipeline(name: string): boolean {
+    const result = this.db.prepare('DELETE FROM pipelines WHERE name = ?').run(name);
+    return (result.changes ?? 0) > 0;
   }
 
-  getPipeline(nameOrId: string): Pipeline | null {
-    const row = this.db.query("SELECT * FROM pipelines WHERE id = ? OR name = ?").get(nameOrId, nameOrId) as Record<string, unknown> | null;
-    return row ? { ...row, members: json.parse(row.members as string) } as Pipeline : null;
+  // ── Proposals ─────────────────────────────────────────────
+
+  /** Create or update an evaluation proposal. */
+  saveProposal(p: EvaluationProposal): void {
+    this.db
+      .prepare(
+        `INSERT INTO proposals (id, type, content, rationale, status, createdAt, acceptedAt, rejectionReason)
+         VALUES ($id, $type, $content, $rationale, $status, $createdAt, $acceptedAt, $rejectionReason)
+         ON CONFLICT(id) DO UPDATE SET
+           type = $type, content = $content, rationale = $rationale, status = $status,
+           acceptedAt = $acceptedAt, rejectionReason = $rejectionReason`,
+      )
+      .run(
+        p.id,
+        p.type,
+        JSON.stringify(p.content),
+        p.rationale,
+        p.status,
+        p.createdAt,
+        p.acceptedAt ?? null,
+        p.rejectionReason ?? null,
+      );
   }
 
-  listPipelines(): Pipeline[] {
-    return (this.db.query("SELECT * FROM pipelines ORDER BY name").all() as Record<string, unknown>[]).map((row) => ({ ...row, members: json.parse(row.members as string) }) as Pipeline);
-  }
-
-  saveGuidance(guidance: GuidanceFile): void {
-    this.db.query("INSERT OR REPLACE INTO guidance_files VALUES (?,?,?,?,?,?)").run(guidance.id, guidance.scope, guidance.harness_id ?? null, guidance.body, guidance.managed_section, guidance.updated_at);
-  }
-
-  listGuidance(): GuidanceFile[] {
-    return this.db.query("SELECT * FROM guidance_files ORDER BY scope,harness_id").all() as GuidanceFile[];
-  }
-
-  saveFinding(finding: AuditFinding): void {
-    this.db.query("INSERT OR REPLACE INTO audit_findings VALUES (?,?,?,?,?,?)").run(finding.artifact_id, finding.auditor_id, finding.score, finding.severity, json.stringify(finding.findings), finding.evaluated_at);
-  }
-
-  listFindings(artifact_id?: string): AuditFinding[] {
-    const rows = artifact_id
-      ? this.db.query("SELECT * FROM audit_findings WHERE artifact_id = ?").all(artifact_id)
-      : this.db.query("SELECT * FROM audit_findings").all();
-    return (rows as Record<string, unknown>[]).map((row) => ({ ...row, findings: json.parse(row.findings as string) }) as AuditFinding);
-  }
-
-  saveProposal(proposal: EvaluationProposal): void {
-    this.db.query("INSERT OR REPLACE INTO evaluation_proposals VALUES (?,?,?,?,?,?,?,?)").run(
-      proposal.id,
-      proposal.kind,
-      json.stringify(proposal.payload),
-      proposal.rationale,
-      proposal.model,
-      proposal.turns,
-      proposal.accepted === null ? null : proposal.accepted ? 1 : 0,
-      proposal.created_at
-    );
-  }
-
+  /** Get a proposal by ID. */
   getProposal(id: string): EvaluationProposal | null {
-    const row = this.db.query("SELECT * FROM evaluation_proposals WHERE id = ?").get(id) as Record<string, unknown> | null;
-    return row
-      ? {
-          ...row,
-          payload: json.parse(row.payload as string),
-          accepted: row.accepted === null ? null : Boolean(row.accepted)
-        } as EvaluationProposal
-      : null;
+    const row = this.db.prepare('SELECT * FROM proposals WHERE id = ?').get(id) as Record<
+      string,
+      unknown
+    > | null;
+    return row ? rowToProposal(row) : null;
   }
 
-  listProposals(): EvaluationProposal[] {
-    return (this.db.query("SELECT * FROM evaluation_proposals ORDER BY created_at DESC").all() as Record<string, unknown>[]).map((row) => ({
-      ...row,
-      payload: json.parse(row.payload as string),
-      accepted: row.accepted === null ? null : Boolean(row.accepted)
-    }) as EvaluationProposal);
+  /** List proposals, optionally filtered by status. */
+  listProposals(status?: EvaluationProposal['status']): EvaluationProposal[] {
+    let sql = 'SELECT * FROM proposals';
+    const params: string[] = [];
+    if (status) {
+      sql += ' WHERE status = ?';
+      params.push(status);
+    }
+    sql += ' ORDER BY createdAt DESC';
+    const rows = this.db.prepare(sql).all(...params) as Record<string, unknown>[];
+    return rows.map(rowToProposal);
+  }
+
+  /** Delete a proposal by ID. Returns true if a row was deleted. */
+  deleteProposal(id: string): boolean {
+    const result = this.db.prepare('DELETE FROM proposals WHERE id = ?').run(id);
+    return (result.changes ?? 0) > 0;
+  }
+
+  // ── Raw Queries (for search/indexing) ─────────────────────
+
+  /** Execute a raw SQL SELECT and return all matching rows. */
+  queryRaw(sql: string, params?: string[]): Record<string, unknown>[] {
+    const stmt = this.db.prepare(sql);
+    return (params && params.length > 0 ? stmt.all(...params) : stmt.all()) as Record<
+      string,
+      unknown
+    >[];
+  }
+
+  /** Execute a raw SQL SELECT and return a single row. */
+  queryRow<T>(sql: string, params?: string[]): T | null {
+    const stmt = this.db.prepare(sql);
+    return (params && params.length > 0 ? stmt.get(...params) : stmt.get()) as T | null;
+  }
+
+  // ── Misc ──────────────────────────────────────────────────
+
+  /** Verify database integrity. */
+  integrityCheck(): string[] {
+    const rows = this.db.prepare('PRAGMA integrity_check').all() as Array<{
+      integrity_check: string;
+    }>;
+    return rows.map((r) => r.integrity_check);
+  }
+
+  /** Close the database connection. */
+  close(): void {
+    this.db.close();
   }
 }
+
+// ── Helpers ─────────────────────────────────────────────────
 
 function rowToArtifact(row: Record<string, unknown>): Artifact {
-  return {
-    ...(row as unknown as Artifact),
-    required_capabilities: json.parse(row.required_capabilities as string),
-    risk_flags: json.parse(row.risk_flags as string),
-    is_self_authored: Boolean(row.is_self_authored),
-    locally_modified: Boolean(row.locally_modified)
-  };
-}
-
-function rowToDeployment(row: Record<string, unknown>): DeploymentRecord {
-  return {
+  const base = {
     id: row.id as string,
-    harness_id: row.harness_id as string,
-    scope: row.scope as string,
-    plan_snapshot: json.parse(row.plan_snapshot as string),
-    applied_at: row.applied_at as string,
-    operations: json.parse(row.operations as string),
-    prior_state_ref: row.prior_state_ref as string | null
+    type: row.type as Artifact['type'],
+    name: row.name as string,
+    path: row.path as string,
+    hash: row.hash as string,
+    size: row.size as number,
+    metadata: safeParseJSON(row.metadata as string | null | undefined, {}),
+    source: safeParseJSON(row.source as string),
+    capabilities: safeParseJSON(row.capabilities as string, []) as Artifact['capabilities'],
+    importedAt: row.importedAt as string,
+    updatedAt: row.updatedAt as string,
+    provenance: (row.provenance as string) ?? '',
+    pinnedRevision: (row.pinnedRevision as string) ?? undefined,
+    localModifications: (row.localModifications as number) === 1,
+  };
+
+  const riskFlags = row.riskFlags
+    ? safeParseJSON<Artifact['riskFlags']>(row.riskFlags as string, [])
+    : undefined;
+
+  return { ...base, ...(riskFlags !== undefined ? { riskFlags } : {}) } as Artifact;
+}
+
+function rowToProposal(row: Record<string, unknown>): EvaluationProposal {
+  const base = {
+    id: row.id as string,
+    type: row.type as EvaluationProposal['type'],
+    content: safeParseJSON(row.content as string),
+    rationale: (row.rationale as string) ?? '',
+    status: row.status as EvaluationProposal['status'],
+    createdAt: row.createdAt as string,
+  };
+  const acceptedAt = (row.acceptedAt as string) ?? undefined;
+  const rejectionReason = (row.rejectionReason as string) ?? undefined;
+  return {
+    ...base,
+    ...(acceptedAt !== undefined ? { acceptedAt } : {}),
+    ...(rejectionReason !== undefined ? { rejectionReason } : {}),
   };
 }
 
-function rowToLoadoutAssignment(row: Record<string, unknown>): LoadoutAssignment {
-  return {
-    harness_id: row.harness_id as string,
-    loadout_id: row.loadout_id as string,
-    active: Boolean(row.active),
-    assigned_at: row.assigned_at as string
-  };
+function safeParseJSON<T>(raw: string | null | undefined, fallback?: T): T {
+  if (!raw) return (fallback ?? {}) as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return (fallback ?? {}) as T;
+  }
 }

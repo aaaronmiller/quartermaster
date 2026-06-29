@@ -1,0 +1,23 @@
+name: opencode
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.opencode/skills/
+      project: .opencode/skills/
+    flat: false
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.opencode/plugins/
+      project: .opencode/plugins/
+    flat: false
+    configFormat: json
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: plugin
+    dialects: [generic]
+deployment:
+  method: copy
+  crossDevice: false
+  priorStateBackup: true

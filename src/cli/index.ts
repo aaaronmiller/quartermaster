@@ -1,140 +1,130 @@
-#!/usr/bin/env bun
-import { auditCommand } from "./commands/audit";
-import { catalogCommand } from "./commands/catalog";
-import { deployCommand } from "./commands/deploy";
-import { evalCommand } from "./commands/eval";
-import { guidanceCommand } from "./commands/guidance";
-import { importCommand } from "./commands/import";
-import { loadoutCommand } from "./commands/loadout";
-import { pipelineCommand } from "./commands/pipeline";
-import { proposalCommand } from "./commands/proposal";
-import { scanCommand } from "./commands/scan";
-import { statusCommand } from "./commands/status";
-import { syncCommand } from "./commands/sync";
-import type { ArtifactType } from "../core/types";
-import { renderTuiState } from "../tui/app";
-import { createRoutes } from "../web/server/routes";
-import {
-  queryArtifactSearch,
-  queryArtifacts,
-  queryCompatibility,
-  queryDeployment,
-  queryLoadouts,
-  queryPipelines,
-  queryProposals,
-  querySummary
-} from "../query/commands";
-import { createContext } from "./context";
-import { fail, printJson, printText } from "./output";
+// ─────────────────────────────────────────────────────────────
+// Quartermaster — CLI Entry Point & command dispatch
+// Commands are registered in COMMANDS. FR tasks attach a `handler`
+// as each command is implemented; until then a recognized command
+// returns an honest "not implemented" envelope (never a fake success).
+// ─────────────────────────────────────────────────────────────
+
+import { configCommand } from './commands/config';
+import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
+
+const VERSION = '3.0.0';
+
+type CommandHandler = (args: ParsedArgs) => Promise<OutputEnvelope> | OutputEnvelope;
+
+interface CommandSpec {
+  summary: string;
+  /** Functional requirement(s) this command serves. */
+  fr: string;
+  /** Attached by the FR task that implements the command. */
+  handler?: CommandHandler;
+}
+
+/** The command registry — single source of truth for dispatch and `--help`. */
+const COMMANDS: Record<string, CommandSpec> = {
+  scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006' },
+  import: { summary: 'Import artifacts from a source', fr: 'FR-010..014' },
+  sync: { summary: 'Check or update upstreams', fr: 'FR-012..014' },
+  audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034' },
+  plan: { summary: 'Dry-run a deployment plan', fr: 'FR-040,045' },
+  deploy: { summary: 'Apply a deployment plan', fr: 'FR-040..048' },
+  rollback: { summary: 'Reverse a recorded deployment', fr: 'FR-046' },
+  status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061' },
+  profile: { summary: 'Manage harness profiles', fr: 'FR-020..023' },
+  new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050' },
+  loadout: { summary: 'Manage loadouts', fr: 'FR-090..094' },
+  pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },
+  eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105' },
+  proposal: { summary: 'Review agentic proposals', fr: 'FR-104,105' },
+  guidance: { summary: 'Edit and deploy guidance files', fr: 'FR-120..122' },
+  safety: { summary: 'Safety auditor management', fr: 'FR-140..142' },
+  query: { summary: 'Agent query interface (machine-readable)', fr: 'FR-130,131' },
+  config: { summary: 'Get/set local configuration', fr: 'Phase 0 / config', handler: configCommand },
+  tui: { summary: 'Launch terminal interface', fr: 'NFR-052' },
+  web: { summary: 'Serve local web interface', fr: 'NFR-052' },
+};
+
+function printVersion(json: boolean): void {
+  if (json) console.log(JSON.stringify({ ok: true, command: 'version', data: { version: VERSION } }));
+  else console.log(`quartermaster v${VERSION}`);
+}
+
+function printHelp(json: boolean): void {
+  if (json) {
+    const commands = Object.fromEntries(
+      Object.entries(COMMANDS).map(([name, spec]) => [name, spec.summary]),
+    );
+    console.log(JSON.stringify({ ok: true, command: 'help', data: { version: VERSION, commands } }));
+    return;
+  }
+  const rows = Object.entries(COMMANDS)
+    .map(([name, spec]) => `  ${name.padEnd(11)} ${spec.summary}`)
+    .join('\n');
+  console.log(`
+Quartermaster — Multi-harness agent artifact manager (v${VERSION})
+
+Usage:
+  qm <command> [options]
+
+Commands:
+${rows}
+  help        Show this help message
+
+Global flags:
+  --help, -h       Show help
+  --version, -v    Print version
+  --verbose        Detailed logging
+  --json           Machine-readable JSON output
+  --yes            Apply without interactive confirmation
+`);
+}
 
 async function main(): Promise<void> {
-  const [command, ...args] = process.argv.slice(2);
-  const { repo } = createContext();
-  if (!command || command === "help" || command === "--help") {
-    printText([
-      "qm scan --root <path> [--json]",
-      "qm catalog [show <id>] [--json]",
-      "qm audit [--harness <id>] [--matrix] [--json]",
-      "qm deploy preview|apply|rollback [--harness <id>] [--target-root <path>] [--yes] [--json]",
-      "qm loadout list|new|add|remove|set|show|assign|switch|copy|move [--json]",
-      "qm pipeline list|new|validate|add-to [--json]",
-      "qm proposal list|show|accept|reject [--json]",
-      "qm guidance render [--json]",
-      "qm import --source <path-or-url> [--kind local|git] [--json]",
-      "qm sync [--json]",
-      "qm eval grade|comparison|loadout|pipeline|audit|improve|fix [--json]",
-      "qm query summary|artifacts|search|compatibility|deployment|loadouts|pipelines|proposals --json",
-      "qm tui [--json]",
-      "qm web [--port <number>]",
-      "qm status [--json]"
-    ]);
-    return;
-  }
-  if (command === "scan") await scanCommand(repo, args);
-  else if (command === "catalog") catalogCommand(repo, args);
-  else if (command === "audit") auditCommand(repo, args);
-  else if (command === "deploy") deployCommand(repo, args);
-  else if (command === "loadout") loadoutCommand(repo, args);
-  else if (command === "pipeline") pipelineCommand(repo, args);
-  else if (command === "proposal") proposalCommand(repo, args);
-  else if (command === "guidance") guidanceCommand(repo, args);
-  else if (command === "import") importCommand(repo, args);
-  else if (command === "sync") syncCommand(repo);
-  else if (command === "eval" || command === "evaluate") await evalCommand(repo, args);
-  else if (command === "status") statusCommand(repo, args);
-  else if (command === "query") queryCommand(repo, args);
-  else if (command === "tui") tuiCommand(repo, args);
-  else if (command === "web") webCommand(repo, args);
-  else fail(`Unknown command: ${command}`);
-}
+  const parsed = parseArgs(process.argv.slice(2));
+  const { command, flags } = parsed;
+  const json = flags.json === true;
 
-function tuiCommand(repo: ReturnType<typeof createContext>["repo"], args: string[]): void {
-  const state = renderTuiState(repo) as { title: string; subtitle: string; sections: { title: string; metrics: { label: string; value: number }[]; commands: string[] }[] };
-  if (args.includes("--json")) {
-    printJson(state);
-    return;
+  // Global flags / no command.
+  if (!command || command === 'help' || flags.help) {
+    printHelp(json);
+    process.exit(EXIT.ok);
   }
-  printText([state.title, state.subtitle, ""]);
-  for (const section of state.sections) {
-    printText([
-      section.title,
-      section.metrics.map((metric) => `${metric.label}: ${metric.value}`).join(" | "),
-      `Commands: ${section.commands.join(" ; ")}`,
-      ""
-    ]);
+  if (command === 'version' || flags.version) {
+    printVersion(json);
+    process.exit(EXIT.ok);
+  }
+
+  const spec = COMMANDS[command];
+
+  // Unknown command → usage error.
+  if (!spec) {
+    const reason = `unknown command '${command}'. Run \`qm --help\` for usage.`;
+    if (json) console.log(JSON.stringify(failure(command, reason)));
+    else console.error(`quartermaster: ${reason}`);
+    process.exit(EXIT.usage);
+  }
+
+  // Recognized but not yet wired → honest not-implemented (no fake success).
+  if (!spec.handler) {
+    const reason = `command '${command}' is recognized (${spec.fr}) but not yet implemented`;
+    if (json) console.log(JSON.stringify({ ok: false, command, reason }));
+    else console.error(`quartermaster: ${reason}`);
+    process.exit(EXIT.notImplemented);
+  }
+
+  // Dispatch.
+  try {
+    const envelope = await spec.handler(parsed);
+    process.exit(emit(envelope, json));
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    if (json) console.log(JSON.stringify(failure(command, reason)));
+    else console.error(`quartermaster: ${command}: ${reason}`);
+    process.exit(EXIT.internal);
   }
 }
 
-function webCommand(repo: ReturnType<typeof createContext>["repo"], args: string[]): void {
-  const port = Number(valueAfter(args, "--port") ?? process.env.QM_WEB_PORT ?? 4173);
-  const app = createRoutes(repo);
-  Bun.serve({ port, fetch: app.fetch });
-  printText([`Quartermaster web UI: http://localhost:${port}`]);
-}
-
-function queryCommand(repo: ReturnType<typeof createContext>["repo"], args: string[]): void {
-  const sub = args[0];
-  if (sub === "summary") printJson(querySummary(repo));
-  else if (sub === "artifacts") printJson(queryArtifacts(repo));
-  else if (sub === "search") {
-    const text = args.find((arg, index) => index > 0 && !arg.startsWith("--"));
-    printJson(queryArtifactSearch(repo, searchInput({
-      text,
-      type: valueAfter(args, "--type") as ArtifactType | undefined,
-      capability: valueAfter(args, "--capability"),
-      risk: valueAfter(args, "--risk"),
-      source_id: valueAfter(args, "--source"),
-      org_path: valueAfter(args, "--path")
-    })));
-  }
-  else if (sub === "compatibility") {
-    const artifact = valueAfter(args, "--artifact");
-    if (!artifact) fail("qm query compatibility requires --artifact <id>");
-    printJson(queryCompatibility(repo, artifact));
-  } else if (sub === "deployment") {
-    const harness = valueAfter(args, "--harness");
-    if (!harness) fail("qm query deployment requires --harness <id>");
-    printJson(queryDeployment(repo, harness));
-  } else if (sub === "loadouts") printJson(queryLoadouts(repo));
-  else if (sub === "pipelines") printJson(queryPipelines(repo));
-  else if (sub === "proposals") printJson(queryProposals(repo));
-  else fail("qm query requires summary, artifacts, search, compatibility, deployment, loadouts, pipelines, or proposals");
-}
-
-function valueAfter(args: string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-  return index >= 0 ? args[index + 1] : undefined;
-}
-
-function searchInput(input: {
-  text?: string | undefined;
-  type?: ArtifactType | undefined;
-  capability?: string | undefined;
-  risk?: string | undefined;
-  source_id?: string | undefined;
-  org_path?: string | undefined;
-}): Parameters<typeof queryArtifactSearch>[1] {
-  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined && value !== "")) as Parameters<typeof queryArtifactSearch>[1];
-}
-
-await main();
+main().catch((err) => {
+  console.error('quartermaster: unexpected error:', err);
+  process.exit(EXIT.internal);
+});

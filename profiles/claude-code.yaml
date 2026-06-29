@@ -1,0 +1,47 @@
+name: claude-code
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.claude/skills/
+      project: .claude/skills/
+    flat: false
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.claude/plugins/
+      project: .claude/plugins/
+    flat: false
+    configFormat: json
+  - type: hook
+    locations:
+      global: /home/cheta/.claude/hooks/
+      project: .claude/hooks/
+    flat: false
+    configFormat: null
+  - type: mcp-config
+    locations:
+      global: /home/cheta/.claude/mcp.json
+      project: .claude/mcp.json
+    flat: true
+    configFormat: json
+  - type: slash-command
+    locations:
+      global: /home/cheta/.claude/commands/
+      project: .claude/commands/
+    flat: false
+    configFormat: md
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: hooks
+    dialects: [claude]
+  - type: mcp
+    dialects: [single-server, multi-server]
+  - type: plugin
+    dialects: [generic]
+  - type: commands
+    dialects: [agent]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true
