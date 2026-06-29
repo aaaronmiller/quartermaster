@@ -225,61 +225,61 @@ Depends on: Phases 1 & 3 (capabilities + profiles).
 Depends on: Phase 4 (verdicts). The riskiest, most-decomposed phase — disk-mutating + reversible.
 
 ### FR-040 — Compile deployment plan (placements, method, transform, skips+reasons)
-- [ ] T100 [FR-040] Audit `plan.ts` compile: enumerate placements before any write — File: src/core/deploy/plan.ts · Verify: plan lists every placement with target+method
-- [ ] T101 [FR-040] Plan records transformation per placement — File: src/core/deploy/plan.ts · Verify: transform-required artifacts show transform in plan
-- [ ] T102 [FR-040 | NFR-050] Plan lists every skipped artifact with reason — File: src/core/deploy/plan.ts · Verify: incompatible artifacts appear in skips with reason
-- [ ] T103 [FR-040] Plan is pure (no disk writes during compile) — File: src/core/deploy/plan.ts · Verify: compiling a plan touches no files
-- [ ] T104 [FR-040] Wire `qm deploy <harness>` to print plan — File: src/cli/commands/deploy.ts · Verify: plan printed with placements/methods/transforms/skips
-- [ ] T105 [FR-040] Test plan completeness on fixtures — File: tests/integration/deploy-preview.test.ts · Verify: `bun test deploy-preview` green
+- [x] T100 [FR-040] Audit `plan.ts` compile: enumerate placements before any write — File: src/core/deploy/plan.ts · Verify ✅: plan lists every placement with target + method in `tests/integration/deploy-preview.test.ts`.
+- [x] T101 [FR-040] Plan records transformation per placement — File: src/core/deploy/plan.ts · Verify ✅: transform-required artifacts show `flatten` / `config-translate` in plan operations.
+- [x] T102 [FR-040 | NFR-050] Plan lists every skipped artifact with reason — File: src/core/deploy/plan.ts · Verify ✅: incompatible hook appears in `excluded` with plain reason.
+- [x] T103 [FR-040] Plan is pure (no disk writes during compile) — File: src/core/deploy/plan.ts · Verify ✅: compile preview test asserts target probe is not created.
+- [x] T104 [FR-040] Wire `qm deploy <harness>` to print plan — File: src/cli/commands/deploy.ts · Verify ✅: `qm deploy codex --json` returns dry-run plan with operations and skips.
+- [x] T105 [FR-040] Test plan completeness on fixtures — File: tests/integration/deploy-preview.test.ts · Verify ✅: `bun test tests/integration/deploy-preview.test.ts` green.
 
 ### FR-041 — Flatten nested layout for flat-only harness; library nesting intact
 > ⚠ Spec leaves collision behavior undefined: two nested artifacts can flatten to the same target name.
-- [ ] T105a [FR-041] SPIKE — decide flatten collision policy: namespacing/disambiguation scheme, deterministic naming, and report-and-skip vs auto-rename when names clash. Write decision doc. — File: specs/001-quartermaster/design/flatten-collisions.md · Verify: doc defines collision rule + a worked two-skill-clash example, reviewed before T106
-- [ ] T106 [FR-041] Audit `flatten.ts` name-collision-safe flattening — File: src/core/deploy/flatten.ts · Verify: nested fixtures flatten without collisions
-- [ ] T107 [FR-041] Confirm flatten never mutates library, only target layout — File: src/core/deploy/flatten.ts · Verify: library paths unchanged post-deploy
-- [ ] T108 [FR-041] Test: every previously-nested artifact discoverable on flat harness — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
+- [x] T105a [FR-041] SPIKE — decide flatten collision policy: namespacing/disambiguation scheme, deterministic naming, and report-and-skip vs auto-rename when names clash. Write decision doc. — File: specs/001-quartermaster/design/flatten-collisions.md · Verify ✅: doc defines deterministic path-derived disambiguation and report-and-skip behavior with worked `SKILL.md` clash.
+- [x] T106 [FR-041] Audit `flatten.ts` name-collision-safe flattening — File: src/core/deploy/flatten.ts · Verify ✅: nested same-basename fixtures flatten to unique target names.
+- [x] T107 [FR-041] Confirm flatten never mutates library, only target layout — File: src/core/deploy/flatten.ts · Verify ✅: test asserts source/library paths are unchanged after flattening.
+- [x] T108 [FR-041] Test: every previously-nested artifact discoverable on flat harness — File: tests/integration/deploy-preview.test.ts · Verify ✅: flattened targets are direct children of the flat target dir and collision-free.
 
 ### FR-042 — Prefer link, fall back to copy
-- [ ] T109 [FR-042] Audit `placer.ts` link path + copy fallback detection — File: src/core/deploy/placer.ts · Verify: link used when available, copy when not
-- [ ] T110 [FR-042 | NFR-020] WSL/Windows non-symlink → graceful copy fallback — File: src/core/deploy/placer.ts · Verify: simulated no-symlink env deploys via copy
-- [ ] T111 [FR-042] Linked edit propagates without redeploy — File: src/core/deploy/placer.ts · Verify: edit library file → linked target reflects it
-- [ ] T112 [FR-042] Test link + copy paths — File: tests/integration/deploy-preview.test.ts · Verify: both branches asserted
+- [x] T109 [FR-042] Audit `placer.ts` link path + copy fallback detection — File: src/core/deploy/placer.ts · Verify ✅: link path creates symlink; fallback path copies.
+- [x] T110 [FR-042 | NFR-020] WSL/Windows non-symlink → graceful copy fallback — File: src/core/deploy/placer.ts · Verify ✅: `QUARTERMASTER_FORCE_COPY_FALLBACK=1` simulates EPERM and deploys via copy.
+- [x] T111 [FR-042] Linked edit propagates without redeploy — File: src/core/deploy/placer.ts · Verify ✅: editing source file is visible through linked target.
+- [x] T112 [FR-042] Test link + copy paths — File: tests/integration/deploy-preview.test.ts · Verify ✅: both branches asserted.
 
 ### FR-043 — Translate canonical config (e.g. MCP) per target format
-- [ ] T113 [FR-043] Audit `config-writer.ts` canonical→target translation — File: src/core/deploy/config-writer.ts · Verify: one MCP def → two target formats
-- [ ] T114 [FR-043] Add translators for each harness's MCP/config dialect — File: src/core/deploy/config-writer.ts · Verify: each built-in profile's config format produced
-- [ ] T115 [FR-043] Test: one canonical MCP definition deploys to two differing harnesses — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
+- [x] T113 [FR-043] Audit `config-writer.ts` canonical→target translation — File: src/core/deploy/config-writer.ts · Verify ✅: one canonical MCP server renders to multiple target formats.
+- [x] T114 [FR-043] Add translators for each harness's MCP/config dialect — File: src/core/deploy/config-writer.ts · Verify ✅: `claude-mcp-json`, `codex-toml`, `antigravity-json`, and `opencode-json` all render and validate.
+- [x] T115 [FR-043] Test: one canonical MCP definition deploys to two differing harnesses — File: tests/integration/deploy-preview.test.ts · Verify ✅: built-in profile config formats produce valid, differing outputs.
 
 ### FR-044 — Exclude incompatible automatically; deploy all compatible
-- [ ] T116 [FR-044] Plan excludes incompatible, includes all compatible — File: src/core/deploy/plan.ts · Verify: 1 incompatible present → rest still deploy
-- [ ] T117 [FR-044] Test acceptance scenario — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
+- [x] T116 [FR-044] Plan excludes incompatible, includes all compatible — File: src/core/deploy/plan.ts · Verify ✅: compatible skill appears in operations while incompatible hook appears in excluded.
+- [x] T117 [FR-044] Test acceptance scenario — File: tests/integration/deploy-preview.test.ts · Verify ✅: assertion passes.
 
 ### FR-045 — Dry-run by default; apply on confirm; `--yes` non-interactive
-- [ ] T118 [FR-045] Implement dry-run plan presentation + confirmation gate — File: src/core/deploy/plan.ts · Verify: default shows plan, waits
-- [ ] T119 [FR-045] Wire `qm deploy ... --yes` non-interactive apply — File: src/cli/commands/deploy.ts · Verify: `--yes` applies without prompt
-- [ ] T120 [FR-045] Test: default waits, flag applies — File: tests/integration/deploy-preview.test.ts · Verify: assertions green
+- [x] T118 [FR-045] Implement dry-run plan presentation + confirmation gate — File: src/core/deploy/plan.ts · Verify ✅: `qm deploy` defaults to dry-run and does not create target files.
+- [x] T119 [FR-045] Wire `qm deploy ... --yes` non-interactive apply — File: src/cli/commands/deploy.ts · Verify ✅: `qm deploy custom-deploy --yes --json` applies copy placement.
+- [x] T120 [FR-045] Test: default waits, flag applies — File: tests/integration/deploy-preview.test.ts · Verify ✅: default dry-run leaves target absent; `--yes` writes target.
 
 ### FR-046 — Record applied deployment; reversible to prior on-disk state
 > ⚠ Known bug: rollback restores from library source, not the actual prior on-disk bytes. Correct version is a transactional snapshot subsystem, not a one-line fix.
-- [ ] T120a [FR-046 | NFR-012] SPIKE — decide deploy-transaction + snapshot model: what prior state to capture (bytes/inode/symlink target), journal format, ordering for atomic-ish apply, and recover-on-failure procedure. Write decision doc. — File: specs/001-quartermaster/design/deploy-transaction.md · Verify: doc defines snapshot scope + journal + recovery flow; T121–T125 implement against it
-- [ ] T121 [FR-046] Audit `records.ts`: capture prior target state before overwrite (not just source path) — File: src/core/deploy/records.ts · Verify: record stores pre-existing target content/inode
-- [ ] T122 [FR-046] Fix rollback to restore actual prior content, not library source — File: src/core/deploy/rollback.ts · Verify: pre-existing different file restored byte-for-byte
-- [ ] T123 [FR-046 | NFR-012] Failed deploy leaves target consistent + recorded (no partial-without-record) — File: src/core/deploy/placer.ts · Verify: injected mid-deploy failure → recoverable state
-- [ ] T124 [FR-046] Wire `qm rollback <deployId>` — File: src/cli/commands/deploy.ts · Verify: rollback restores pre-deploy state
-- [ ] T125 [FR-046] Test deploy→rollback round trip — File: tests/integration/deploy-rollback.test.ts · Verify: `bun test deploy-rollback` green
+- [x] T120a [FR-046 | NFR-012] SPIKE — decide deploy-transaction + snapshot model: what prior state to capture (bytes/inode/symlink target), journal format, ordering for atomic-ish apply, and recover-on-failure procedure. Write decision doc. — File: specs/001-quartermaster/design/deploy-transaction.md · Verify ✅: doc defines snapshot scope, operation-local journal, rollback semantics, and failure recovery.
+- [x] T121 [FR-046] Audit `records.ts`: capture prior target state before overwrite (not just source path) — File: src/core/deploy/records.ts, src/core/deploy/placer.ts · Verify ✅: applied plan operations carry `priorState` with missing/file/symlink snapshots.
+- [x] T122 [FR-046] Fix rollback to restore actual prior content, not library source — File: src/core/deploy/rollback.ts · Verify ✅: rollback restores pre-existing different target bytes after library source changes.
+- [x] T123 [FR-046 | NFR-012] Failed deploy leaves target consistent + recorded (no partial-without-record) — File: src/core/deploy/placer.ts · Verify ✅: injected second-operation failure rolls back first placement immediately.
+- [x] T124 [FR-046] Wire `qm rollback <deployId>` — File: src/cli/commands/deploy.ts · Verify ✅: CLI rollback restores pre-deploy state from recorded deployment id.
+- [x] T125 [FR-046] Test deploy→rollback round trip — File: tests/integration/deploy-rollback.test.ts · Verify ✅: `bun test tests/integration/deploy-rollback.test.ts` green.
 
 ### FR-047 — Deploy to single / named group / all harnesses
-- [ ] T126 [FR-047] Support target = one harness — File: src/core/deploy/plan.ts · Verify: single-harness deploy works
-- [ ] T127 [FR-047] Support target = named group of harnesses — File: src/core/deploy/plan.ts · Verify: group deploys each member in its layout/format
-- [ ] T128 [FR-047] Support target = all configured harnesses in one invocation — File: src/cli/commands/deploy.ts · Verify: `qm deploy --all` deploys compatible subset everywhere
-- [ ] T129 [FR-047] Test one command → every harness correct — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
+- [x] T126 [FR-047] Support target = one harness — File: src/core/deploy/plan.ts · Verify ✅: single-harness `qm deploy custom-deploy --yes` applies one target.
+- [x] T127 [FR-047] Support target = named group of harnesses — File: src/core/deploy/plan.ts · Verify ✅: configured `pair` group produces plans for both harness members.
+- [x] T128 [FR-047] Support target = all configured harnesses in one invocation — File: src/cli/commands/deploy.ts · Verify ✅: `qm deploy --all --yes` applies to all configured harnesses.
+- [x] T129 [FR-047] Test one command → every harness correct — File: tests/integration/deploy-preview.test.ts · Verify ✅: one `--all` command writes both harness target files.
 
 ### FR-048 — Scope deploy to subset (profile/tag/subtree)
-- [ ] T130 [FR-048] Add `PlanOptions.scope` (tag / org-subtree / named subset) filter — File: src/core/deploy/plan.ts · Verify: scoped plan includes only subset
-- [ ] T131 [FR-048] Wire `qm deploy <harness> --scope <selector>` — File: src/cli/commands/deploy.ts · Verify: only subset's compatible artifacts placed
-- [ ] T132 [FR-048] Test scoped deployment — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
-- [ ] T133 [FR-048 | NFR-010] Idempotency test: reapply same plan to unchanged target = no changes — File: tests/integration/deploy-rollback.test.ts · Verify: second apply reports zero changes
-- [ ] T134 [FR-048 | NFR-011] Assert deploy engine never writes into library — File: tests/integration/deploy-preview.test.ts · Verify: library tree unchanged after any deploy
+- [x] T130 [FR-048] Add `PlanOptions.scope` (tag / org-subtree / named subset) filter — File: src/core/deploy/plan.ts · Verify ✅: `PlanScope` supports ids, org path, and tags.
+- [x] T131 [FR-048] Wire `qm deploy <harness> --scope <selector>` — File: src/cli/commands/deploy.ts · Verify ✅: `--scope=path:research` deploys only matching subset.
+- [x] T132 [FR-048] Test scoped deployment — File: tests/integration/deploy-preview.test.ts · Verify ✅: scoped deploy places only research artifact.
+- [x] T133 [FR-048 | NFR-010] Idempotency test: reapply same plan to unchanged target = no changes — File: tests/integration/deploy-preview.test.ts · Verify ✅: second apply reports `skipped`.
+- [x] T134 [FR-048 | NFR-011] Assert deploy engine never writes into library — File: tests/integration/deploy-preview.test.ts · Verify ✅: library source files unchanged after deploy.
 
 ---
 

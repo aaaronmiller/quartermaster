@@ -7,7 +7,14 @@
 import yaml from 'js-yaml';
 import { stringify as tomlStringify } from 'smol-toml';
 
-export type ConfigFormat = 'json' | 'yaml' | 'toml';
+export type ConfigFormat =
+  | 'json'
+  | 'yaml'
+  | 'toml'
+  | 'claude-mcp-json'
+  | 'codex-toml'
+  | 'antigravity-json'
+  | 'opencode-json';
 
 export interface McpServerDef {
   name: string;
@@ -30,6 +37,14 @@ export function writeConfig(config: McpServerDef, format: ConfigFormat): string 
       return writeYaml(config);
     case 'toml':
       return writeToml(config);
+    case 'claude-mcp-json':
+      return JSON.stringify({ mcpServers: { [config.name]: mcpServerBody(config) } }, null, 2);
+    case 'codex-toml':
+      return tomlStringify({ mcp_servers: { [config.name]: mcpServerBody(config) } });
+    case 'antigravity-json':
+      return JSON.stringify({ mcpServers: { [config.name]: mcpServerBody(config) } }, null, 2);
+    case 'opencode-json':
+      return JSON.stringify({ mcp: { [config.name]: mcpServerBody(config) } }, null, 2);
     default: {
       const _exhaustive: never = format;
       throw new ConfigWriterError(`Unknown format: ${_exhaustive}`);
@@ -44,12 +59,16 @@ export function validateConfig(content: string, format: ConfigFormat): boolean {
   try {
     switch (format) {
       case 'json':
+      case 'claude-mcp-json':
+      case 'antigravity-json':
+      case 'opencode-json':
         JSON.parse(content);
         return true;
       case 'yaml':
         yaml.load(content);
         return true;
-      case 'toml': {
+      case 'toml':
+      case 'codex-toml': {
         const { parse } = require('smol-toml');
         parse(content);
         return true;
@@ -119,6 +138,18 @@ function writeToml(config: McpServerDef): string {
   if (config.url) obj.url = config.url;
 
   return tomlStringify(obj);
+}
+
+function mcpServerBody(config: McpServerDef): Record<string, unknown> {
+  const obj: Record<string, unknown> = {};
+  if (config.command) obj.command = config.command;
+  if (config.args && config.args.length > 0) obj.args = config.args;
+  if (config.env && Object.keys(config.env).length > 0) obj.env = config.env;
+  if (config.transport === 'sse' && config.url) {
+    obj.transport = 'sse';
+    obj.url = config.url;
+  }
+  return obj;
 }
 
 export class ConfigWriterError extends Error {

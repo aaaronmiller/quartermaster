@@ -8,6 +8,7 @@
 import { auditCommand } from './commands/audit';
 import { listCommand } from './commands/catalog';
 import { configCommand } from './commands/config';
+import { deployCommand, rollbackCommand } from './commands/deploy';
 import { importCommand } from './commands/import';
 import { profileCommand } from './commands/profile';
 import { scanCommand } from './commands/scan';
@@ -37,8 +38,8 @@ const COMMANDS: Record<string, CommandSpec> = {
   unpin: { summary: 'Remove an artifact revision pin', fr: 'FR-014', handler: unpinCommand },
   audit: { summary: 'Print compatibility matrix and verdicts', fr: 'FR-030..034', handler: auditCommand },
   plan: { summary: 'Dry-run a deployment plan', fr: 'FR-040,045' },
-  deploy: { summary: 'Apply a deployment plan', fr: 'FR-040..048' },
-  rollback: { summary: 'Reverse a recorded deployment', fr: 'FR-046' },
+  deploy: { summary: 'Apply a deployment plan', fr: 'FR-040..048', handler: deployCommand },
+  rollback: { summary: 'Reverse a recorded deployment', fr: 'FR-046', handler: rollbackCommand },
   status: { summary: 'Show deployed artifacts and drift', fr: 'FR-060,061' },
   profile: { summary: 'Manage harness profiles', fr: 'FR-020..023', handler: profileCommand },
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050' },

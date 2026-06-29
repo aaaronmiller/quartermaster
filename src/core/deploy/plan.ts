@@ -8,8 +8,14 @@ import type { VerdictResult } from '@core/audit/auditor';
 import type { Artifact, DeploymentOperation, DeploymentPlan, HarnessProfile } from '@core/types';
 
 export interface PlanOptions {
-  scope?: Artifact[];
+  scope?: Artifact[] | PlanScope;
   libraryRoot?: string;
+}
+
+export interface PlanScope {
+  ids?: string[];
+  orgPath?: string;
+  tags?: string[];
 }
 
 /**
@@ -32,7 +38,7 @@ export function compilePlan(
 
   for (const artifact of artifacts) {
     // Apply scope filter
-    if (scope && !scope.some((s) => s.id === artifact.id)) continue;
+    if (scope && !artifactInScope(artifact, scope)) continue;
 
     const verdict = verdictMap.get(artifact.id);
     if (!verdict) {
@@ -80,6 +86,18 @@ export function compilePlan(
     operations,
     excluded,
   };
+}
+
+function artifactInScope(artifact: Artifact, scope: Artifact[] | PlanScope): boolean {
+  if (Array.isArray(scope)) return scope.some((s) => s.id === artifact.id);
+  if (scope.ids && !scope.ids.includes(artifact.id) && !scope.ids.includes(artifact.name)) return false;
+  if (scope.orgPath && !artifact.organizationalPath.startsWith(scope.orgPath)) return false;
+  if (scope.tags && scope.tags.length > 0) {
+    const tags = artifact.metadata.tags;
+    const tagList = Array.isArray(tags) ? tags.map(String) : [];
+    if (!scope.tags.some((tag) => tagList.includes(tag))) return false;
+  }
+  return true;
 }
 
 /**

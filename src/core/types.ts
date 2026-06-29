@@ -207,8 +207,11 @@ export interface DeploymentOperation {
   transform?: string;
   /** Captured prior state for rollback (populated during apply). */
   priorState?: {
-    contentHash: string;
-    permissions: number;
+    kind: 'missing' | 'file' | 'symlink';
+    contentHash?: string;
+    content?: string;
+    symlinkTarget?: string;
+    permissions?: number;
   };
 }
 

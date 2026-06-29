@@ -6,10 +6,9 @@
 
 import type { DeploymentOperation, DeploymentPlan } from '@core/types';
 import type { Repository } from '@storage/repository';
-import { createHash } from 'crypto';
-import { existsSync, promises as fs } from 'fs';
-import { dirname } from 'path';
-import { DeployError } from './plan';
+import { createHash } from 'node:crypto';
+import { existsSync, promises as fs } from 'node:fs';
+import { dirname } from 'node:path';
 
 export interface OperationResult {
   operation: DeploymentOperation;
@@ -38,16 +37,25 @@ export async function executePlacement(
 
   for (const op of plan.operations) {
     try {
+      if (await targetMatchesOperation(op)) {
+        results.push({ operation: op, status: 'skipped' });
+        continue;
+      }
+
       // Ensure target directory exists
       const targetDir = dirname(op.targetPath);
       await fs.mkdir(targetDir, { recursive: true });
 
       // Capture prior state
       const priorState = await capturePriorState(op.targetPath);
+      op.priorState = priorState;
 
       // Execute placement
       if (op.method === 'link') {
         try {
+          if (process.env.QUARTERMASTER_FORCE_COPY_FALLBACK === '1') {
+            throw Object.assign(new Error('forced symlink fallback'), { code: 'EPERM' });
+          }
           // Remove existing if present
           if (existsSync(op.targetPath)) {
             await fs.unlink(op.targetPath);
@@ -103,31 +111,56 @@ export async function executePlacement(
   };
 }
 
+async function targetMatchesOperation(op: DeploymentOperation): Promise<boolean> {
+  if (!existsSync(op.targetPath)) return false;
+  try {
+    const stat = await fs.lstat(op.targetPath);
+    if (op.method === 'link' && stat.isSymbolicLink()) {
+      return (await fs.readlink(op.targetPath)) === op.sourcePath;
+    }
+    if (!stat.isFile()) return false;
+    const [source, target] = await Promise.all([fs.readFile(op.sourcePath), fs.readFile(op.targetPath)]);
+    return createHash('sha256').update(source).digest('hex') === createHash('sha256').update(target).digest('hex');
+  } catch {
+    return false;
+  }
+}
+
 // ─── Prior State ────────────────────────────────────────────
 
-async function capturePriorState(targetPath: string): Promise<DeploymentOperation['priorState']> {
+async function capturePriorState(
+  targetPath: string,
+): Promise<NonNullable<DeploymentOperation['priorState']>> {
   if (!existsSync(targetPath)) {
-    return undefined; // No prior state (new file)
+    return { kind: 'missing' };
   }
 
   try {
-    const content = await fs.readFile(targetPath);
-    const stat = await fs.stat(targetPath);
+    const stat = await fs.lstat(targetPath);
+    if (stat.isSymbolicLink()) {
+      return {
+        kind: 'symlink',
+        symlinkTarget: await fs.readlink(targetPath),
+        permissions: stat.mode,
+      };
+    }
+    const content = await fs.readFile(targetPath, 'utf8');
     return {
+      kind: 'file',
+      content,
       contentHash: createHash('sha256').update(content).digest('hex'),
       permissions: stat.mode,
     };
   } catch {
-    return undefined;
+    return { kind: 'missing' };
   }
 }
 
-async function restorePriorState(
+export async function restorePriorState(
   op: DeploymentOperation,
   priorState: DeploymentOperation['priorState'] | undefined,
 ): Promise<void> {
-  if (!priorState) {
-    // No prior state → this was a new file, delete it
+  if (!priorState || priorState.kind === 'missing') {
     try {
       if (existsSync(op.targetPath)) {
         await fs.unlink(op.targetPath);
@@ -138,6 +171,15 @@ async function restorePriorState(
     return;
   }
 
-  // Restore content from original source
-  await fs.copyFile(op.sourcePath, op.targetPath);
+  await fs.mkdir(dirname(op.targetPath), { recursive: true });
+  if (existsSync(op.targetPath)) await fs.unlink(op.targetPath);
+  if (priorState.kind === 'symlink') {
+    if (!priorState.symlinkTarget) return;
+    await fs.symlink(priorState.symlinkTarget, op.targetPath);
+    return;
+  }
+  await fs.writeFile(op.targetPath, priorState.content ?? '', 'utf8');
+  if (priorState.permissions !== undefined) {
+    await fs.chmod(op.targetPath, priorState.permissions);
+  }
 }

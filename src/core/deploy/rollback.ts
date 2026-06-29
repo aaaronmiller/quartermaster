@@ -5,8 +5,8 @@
 
 import type { DeploymentRecord } from '@core/types';
 import type { Repository } from '@storage/repository';
-import { existsSync, promises as fs } from 'fs';
 import { createRecord } from './records';
+import { restorePriorState } from './placer';
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 100;
@@ -32,20 +32,9 @@ export async function rollbackDeployment(
   }
 
   // Execute reverse of each operation
-  for (const op of record.plan.operations) {
+  for (const op of [...record.plan.operations].reverse()) {
     await retryOnError(async () => {
-      if (!op.priorState) {
-        // No prior state → this was a new file, remove it
-        if (existsSync(op.targetPath)) {
-          await fs.unlink(op.targetPath);
-        }
-      } else {
-        // Restore prior state content from source
-        // Note: in practice, we'd restore from backup, not from current source
-        if (existsSync(op.sourcePath)) {
-          await fs.copyFile(op.sourcePath, op.targetPath);
-        }
-      }
+      await restorePriorState(op, op.priorState);
     }, MAX_RETRIES);
   }
 
