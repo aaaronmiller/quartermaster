@@ -205,6 +205,10 @@ export interface DeploymentOperation {
   method: DeployMethod;
   /** Optional transformation name to apply before placement. */
   transform?: string;
+  /** Artifact id and provenance surfaced before deployment. */
+  artifactId?: string;
+  provenance?: string;
+  riskFlags?: RiskFlag[];
   /** Captured prior state for rollback (populated during apply). */
   priorState?: {
     kind: 'missing' | 'file' | 'symlink';

@@ -317,16 +317,16 @@ Depends on: Phase 5 (records). `status.ts` exists; verify against reality.
 Depends on: Phases 2 & 5.
 
 ### FR-070 — Record provenance + surface before deployment
-- [ ] T147 [FR-070] Confirm provenance (source, revision, import time) on every artifact — File: src/core/types.ts · Verify: provenance fields populated post-import
-- [ ] T148 [FR-070] Surface provenance in deployment plan output — File: src/core/deploy/plan.ts · Verify: plan shows origin+revision per artifact
-- [ ] T149 [FR-070] Test: provenance visible before deploy — File: tests/integration/deploy-preview.test.ts · Verify: assertion passes
+- [x] T147 [FR-070] Confirm provenance (source, revision, import time) on every artifact — File: src/core/types.ts · Verify ✅: import/sync artifacts carry source + provenance/importedRevision/importedHash; `bun test tests/integration/sync.test.ts` green and `bun run typecheck` green.
+- [x] T148 [FR-070] Surface provenance in deployment plan output — File: src/core/deploy/plan.ts · Verify ✅: `compilePlan` includes `artifactId` + `provenance` per operation; focused deploy-preview test asserts origin+revision appears.
+- [x] T149 [FR-070] Test: provenance visible before deploy — File: tests/integration/deploy-preview.test.ts · Verify ✅: `bun test tests/integration/deploy-preview.test.ts` assertion passes.
 
 ### FR-071 — Scan risk indicators; flag in catalog + plans
-- [ ] T150 [FR-071] Audit `risk/scanner.ts` indicators (bundled scripts, network, shell exec, secret access) — File: src/core/risk/scanner.ts · Verify: each indicator detected on a crafted fixture
-- [ ] T151 [FR-071] Record risk flags in catalog — File: src/core/risk/scanner.ts · Verify: risky artifact flagged in catalog row
-- [ ] T152 [FR-071] Surface risk flags in deployment plan — File: src/core/deploy/plan.ts · Verify: plan shows risk flags pre-deploy
-- [ ] T153 [FR-071] Wire `qm scan-risk` / fold into `qm audit` — File: src/cli/commands/audit.ts · Verify: risk report renders
-- [ ] T154 [FR-071] Test: bundled-script artifact flagged before deploy — File: tests/unit/safety.test.ts · Verify: assertion passes
+- [x] T150 [FR-071] Audit `risk/scanner.ts` indicators (bundled scripts, network, shell exec, secret access) — File: src/core/risk/scanner.ts · Verify ✅: crafted fixture detects bundled-script, network-access, shell-execution, and secret-access.
+- [x] T151 [FR-071] Record risk flags in catalog — File: src/core/risk/scanner.ts · Verify ✅: `qm audit risk --json` persists `riskFlags` back into the catalog row.
+- [x] T152 [FR-071] Surface risk flags in deployment plan — File: src/core/deploy/plan.ts · Verify ✅: focused deploy-preview test asserts plan operation exposes `riskFlags` before deploy.
+- [x] T153 [FR-071] Wire `qm scan-risk` / fold into `qm audit` — File: src/cli/commands/audit.ts · Verify ✅: `qm audit risk --json` renders a risk report and returns ok.
+- [x] T154 [FR-071] Test: bundled-script artifact flagged before deploy — File: tests/unit/safety.test.ts · Verify ✅: `bun test tests/unit/safety.test.ts` assertion passes.
 
 ---
 

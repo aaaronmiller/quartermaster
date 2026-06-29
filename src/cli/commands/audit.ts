@@ -12,12 +12,14 @@ import {
 } from '@core/audit/auditor';
 import { loadConfig } from '@core/config/load';
 import { ProfileRegistry } from '@core/profiles/profile-registry';
+import { scanRisks } from '@core/risk/scanner';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
 
-export function auditCommand(args: ParsedArgs): OutputEnvelope {
+export async function auditCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   if (args.positional[0] === 'override') return overrideCommand(args);
+  if (args.positional[0] === 'risk') return riskCommand();
 
   const cfg = loadConfig();
   const repo = new Repository({ dbPath: cfg.dbPath });
@@ -39,6 +41,23 @@ export function auditCommand(args: ParsedArgs): OutputEnvelope {
         })),
       ),
     });
+  } finally {
+    repo.close();
+  }
+}
+
+async function riskCommand(): Promise<OutputEnvelope> {
+  const cfg = loadConfig();
+  const repo = new Repository({ dbPath: cfg.dbPath });
+  try {
+    const artifacts = repo.listArtifacts();
+    const report = [];
+    for (const artifact of artifacts) {
+      const riskFlags = await scanRisks(artifact);
+      repo.upsertArtifact({ ...artifact, riskFlags });
+      report.push({ artifactId: artifact.id, riskFlags });
+    }
+    return success('audit', { artifacts: report.length, report });
   } finally {
     repo.close();
   }

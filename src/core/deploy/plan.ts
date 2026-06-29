@@ -69,9 +69,12 @@ export function compilePlan(
     const targetPath = `${targetDir}/${targetName}`;
 
     const operation: DeploymentOperation = {
+      artifactId: artifact.id,
       sourcePath: artifact.path,
       targetPath,
       method: profile.deployment.method,
+      provenance: artifact.provenance,
+      ...(artifact.riskFlags && artifact.riskFlags.length > 0 ? { riskFlags: artifact.riskFlags } : {}),
     };
 
     if (verdict.verdict === 'transform' && verdict.transformation) {

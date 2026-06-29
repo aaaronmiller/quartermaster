@@ -63,10 +63,31 @@ test('compilePlan lists placements, transforms, and skips without writing files'
       expect.objectContaining({ sourcePath: artifacts[1]!.path, method: 'copy', transform: 'config-translate' }),
     ]),
   );
+  expect(plan.operations[0]?.provenance).toBeTruthy();
   expect(plan.excluded).toEqual(
     expect.arrayContaining([expect.objectContaining({ artifact: 'hook-1', reason: expect.stringContaining('type') })]),
   );
   expect(existsSync(targetProbe)).toBe(false);
+});
+
+test('deployment plan surfaces provenance and risk flags before deploy', () => {
+  const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
+  const risky = artifact({
+    id: 'risky',
+    provenance: 'git:https://example.test/repo@abc123',
+    riskFlags: [
+      {
+        artifactId: 'risky',
+        type: 'network-access',
+        severity: 'low',
+        detail: 'fetch call',
+      },
+    ],
+  });
+  const matrix = computeCompatibilityMatrix([risky], [codex]);
+  const plan = compilePlan([risky], matrix.map((row) => row[0]!), codex);
+  expect(plan.operations[0]?.provenance).toContain('abc123');
+  expect(plan.operations[0]?.riskFlags?.[0]?.type).toBe('network-access');
 });
 
 test('qm deploy <harness> prints a dry-run plan with operations and skips', () => {
