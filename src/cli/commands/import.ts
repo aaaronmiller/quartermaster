@@ -6,6 +6,7 @@
 import { loadConfig } from '@core/config/load';
 import type { ArtifactSource } from '@core/types';
 import { ImportManager } from '@core/sources/importers';
+import { auditOnIngest } from '@core/safety/ingest';
 import { Repository } from '@storage/repository';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,6 +36,11 @@ export async function importCommand(args: ParsedArgs): Promise<OutputEnvelope> {
       ...(pin ? { pin } : {}),
     };
     const result = await manager.importFromSource(options);
+    // FR-141: automatically audit newly imported artifacts.
+    const at = new Date().toISOString();
+    for (const artifact of [...result.added, ...result.changed]) {
+      await auditOnIngest(repo, artifact, at);
+    }
     return success('import', {
       source: source.source,
       targetDir,

@@ -3,8 +3,9 @@
 // Named subsets of artifacts + pipelines for scoped deployment.
 // ─────────────────────────────────────────────────────────────
 
-import type { Artifact, LoadoutDefinition } from '@core/types';
+import type { Artifact, LoadoutDefinition, PipelineDefinition } from '@core/types';
 import type { Repository } from '@storage/repository';
+import { validatePipeline } from '@core/pipelines/validate';
 
 export interface LoadoutStatus {
   harness: string;
@@ -87,9 +88,48 @@ export class LoadoutManager {
     this.repo.deleteLoadout(name);
   }
 
-  /** Activate a loadout for a harness. */
+  /**
+   * Validate every pipeline a loadout carries (FR-113). Returns the flat list
+   * of plain-language errors; empty means all member pipelines are valid.
+   */
+  validateLoadoutPipelines(loadout: LoadoutDefinition, compositionEnabled = false): string[] {
+    const problems: string[] = [];
+    for (const pipelineName of loadout.pipelines) {
+      const pipeline = this.repo.getPipeline(pipelineName);
+      if (!pipeline) {
+        problems.push(`pipeline '${pipelineName}' referenced by loadout not found`);
+        continue;
+      }
+      const result = validatePipeline(this.repo, pipeline, compositionEnabled);
+      for (const entry of result.errors) problems.push(...entry.errors);
+    }
+    return problems;
+  }
+
+  /** Resolve directives of the active loadout's pipelines for guidance injection (FR-121). */
+  activePipelineDirectives(harness: string): PipelineDefinition[] {
+    const active = this.getActiveLoadout(harness);
+    if (!active) return [];
+    const pipelines: PipelineDefinition[] = [];
+    for (const pipelineName of active.pipelines) {
+      const pipeline = this.repo.getPipeline(pipelineName);
+      if (pipeline) pipelines.push(pipeline);
+    }
+    return pipelines;
+  }
+
+  /**
+   * Activate a loadout for a harness. Activation is blocked (FR-113) until every
+   * member pipeline validates against the catalog.
+   */
   activate(harness: string, loadoutName: string): LoadoutDefinition {
     const loadout = this.requireLoadout(loadoutName);
+    const pipelineProblems = this.validateLoadoutPipelines(loadout);
+    if (pipelineProblems.length > 0) {
+      throw new LoadoutError(
+        `Cannot activate loadout '${loadoutName}': invalid pipeline(s) — ${pipelineProblems.join('; ')}`,
+      );
+    }
     if (!loadout.harnesses.includes(harness)) {
       // Auto-assign the harness if not already assigned
       loadout.harnesses = [...loadout.harnesses, harness];

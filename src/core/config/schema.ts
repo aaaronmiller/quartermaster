@@ -36,6 +36,12 @@ export interface CompositionConfig {
   enabled: boolean;
 }
 
+/** Optional MCP query server (FR-132). CLI remains the primary surface. */
+export interface McpConfig {
+  /** Off by default — the system is fully functional with MCP disabled. */
+  enabled: boolean;
+}
+
 /** The fully-resolved configuration object. */
 export interface QuartermasterConfig {
   /** Library root locations to scan (FR-001). */
@@ -51,6 +57,8 @@ export interface QuartermasterConfig {
   safety: SafetyConfig;
   composition: CompositionConfig;
   eval: EvalConfig;
+  /** Optional MCP server (FR-132); absent/disabled by default. */
+  mcp?: McpConfig;
 }
 
 function home(): string {

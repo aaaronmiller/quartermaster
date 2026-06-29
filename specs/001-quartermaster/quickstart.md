@@ -27,7 +27,7 @@ cd quartermaster
 bun install
 
 # Initialize the catalog database (auto-created on first scan)
-bun run qm scan --root ./test-fixtures/library
+bun run qm scan ./test-fixtures/library
 
 # Verify installation
 bun run qm --help
@@ -44,7 +44,7 @@ mkdir -p test-fixtures/library/web/frontend-design
 # ... populate with test artifacts ...
 
 # Scan the library
-bun run qm scan --root ./test-fixtures/library
+bun run qm scan ./test-fixtures/library
 
 # Expected: All artifacts cataloged with correct types, subfolder paths preserved
 bun run qm query list --json
@@ -63,8 +63,8 @@ bun run qm audit
 ### 3. Dry-Run Deployment
 
 ```bash
-# Preview deployment to Claude Code
-bun run qm plan claude-code
+# Preview deployment to Claude Code (dry-run by default)
+bun run qm deploy claude-code
 
 # Expected: Dry-run output listing every placement, method, transformation, and skip
 # No disk writes
@@ -73,8 +73,8 @@ bun run qm plan claude-code
 ### 4. Full Deployment and Verification
 
 ```bash
-# Deploy (with confirmation)
-bun run qm deploy claude-code
+# Deploy (apply changes)
+bun run qm deploy claude-code --yes
 
 # Expected: 
 #   - Nested skills flattened and discoverable by Claude Code
@@ -91,8 +91,8 @@ bun run qm status claude-code
 ### 5. Deployment Reversal
 
 ```bash
-# Revert the last deployment
-bun run qm revert --last
+# Revert a recorded deployment by id (see deploy/status output)
+bun run qm rollback <deployId>
 
 # Expected: Target harness restored to pre-deployment state
 ```
@@ -101,7 +101,7 @@ bun run qm revert --last
 
 ```bash
 # Define a coding loadout
-bun run qm loadout new coding
+bun run qm loadout create coding
 
 # Add artifacts to the loadout
 bun run qm loadout add coding some-skill
@@ -117,14 +117,14 @@ bun run qm loadout assign coding claude-code
 
 ```bash
 # Grade an artifact
-bun run qm evaluate grade my-skill --categories quality,clarity,usefulness
+bun run qm eval grade my-skill --categories quality,clarity,usefulness
 
 # Propose loadouts from catalog
-bun run qm evaluate propose-loadouts
+bun run qm propose loadouts
 
 # Review proposals
 bun run qm proposal list
-bun run qm proposal show <id>
+bun run qm proposal accept <id>   # or: reject / edit
 
 # Accept a proposal
 bun run qm proposal accept <id>
@@ -133,11 +133,10 @@ bun run qm proposal accept <id>
 ### 8. Guidance File Management
 
 ```bash
-# Edit the canonical guidance file
-bun run qm guidance edit
+# Render guidance for a harness (also deployed automatically by `qm deploy`)
+bun run qm guidance render claude-code --source ./GUIDANCE.md
 
-# Deploy guidance to all harnesses
-bun run qm guidance deploy all
+# Guidance is placed per harness during `qm deploy <harness> --yes`
 
 # Expected: 
 #   - CLAUDE.md for Claude Code
@@ -162,11 +161,11 @@ bun run qm sync
 ### 10. Safety Audit
 
 ```bash
-# Run safety scan on all artifacts
-bun run qm safety scan --all
+# Run a safety audit on an artifact (also runs automatically on import/scan)
+bun run qm safety audit my-skill
 
 # Set deployment gate threshold
-bun run qm safety threshold 60
+bun run qm safety threshold 0.6
 
 # Expected: Artifacts below threshold blocked from deployment
 ```

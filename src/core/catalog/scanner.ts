@@ -70,6 +70,11 @@ export async function scanRoots(
 
   const result: ScanResult = { added: [], changed: [], removed: [], errors: [] };
 
+  // Phase 1 (async, no DB writes): detect type, hash, and classify each file.
+  // Phase 2 batches all upserts into one transaction — on a 1000-artifact
+  // library this turns 1000 auto-committed writes into a single commit
+  // (NFR-001: full scan < 10s).
+  const pending: Artifact[] = [];
   for (const { file: filePath, root } of allFiles) {
     try {
       const detected = await detectArtifactType(filePath);
@@ -84,13 +89,17 @@ export async function scanRoots(
 
       if (isNew) result.added.push(artifact);
       else if (hash !== existingHash) result.changed.push(artifact);
-      // unchanged: skip recording in the diff
+      // unchanged: still upserted (idempotent), but not reported in the diff
 
-      repo.upsertArtifact(artifact);
+      pending.push(artifact);
     } catch (err) {
       result.errors.push({ path: filePath, error: err instanceof Error ? err.message : String(err) });
     }
   }
+
+  repo.transaction(() => {
+    for (const artifact of pending) repo.upsertArtifact(artifact);
+  });
 
   return result;
 }
@@ -207,7 +216,9 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
 
   // 3. Skill: SKILL.md, *.skill.md, or any *.md with YAML frontmatter
   if (lower === 'skill.md' || lower.endsWith('.skill.md')) {
-    const meta = await safeFrontmatter(filePath);
+    const content = await readText(filePath);
+    const meta = content.startsWith('---') ? parseFrontmatter(content) : {};
+    if (detectsMcpReference(content)) meta.referencesMcp = true;
     return mk('skill', str(meta.name) ?? basename(dirname(filePath)), filePath, meta, [
       { type: 'skill', dialect: 'agent-md' },
     ]);
@@ -216,6 +227,7 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     const content = await readText(filePath);
     if (content.startsWith('---')) {
       const meta = parseFrontmatter(content);
+      if (detectsMcpReference(content)) meta.referencesMcp = true;
       return mk('skill', str(meta.name) ?? stripExt(fileName), filePath, meta, [
         { type: 'skill', dialect: 'agent-md' },
       ]);
@@ -334,6 +346,15 @@ async function safeJson(filePath: string): Promise<Record<string, unknown>> {
 async function safeFrontmatter(filePath: string): Promise<Record<string, unknown>> {
   const content = await readText(filePath);
   return content.startsWith('---') ? parseFrontmatter(content) : {};
+}
+
+/**
+ * Detect whether a skill body references an MCP server (FR-004). Conservative
+ * signal-matching, biased toward over-declaring the mcp capability so verdicts
+ * fail safe (per the capability-inference spike).
+ */
+function detectsMcpReference(content: string): boolean {
+  return /mcpServers|mcp__|modelcontextprotocol|\.mcp\.json|\bMCP server\b/i.test(content);
 }
 
 function parseFrontmatter(content: string): Record<string, unknown> {

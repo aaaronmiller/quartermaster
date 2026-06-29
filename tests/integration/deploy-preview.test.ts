@@ -409,3 +409,26 @@ deployment:
 `,
   );
 }
+
+test('qm deploy --yes places a per-harness guidance file with a managed section (FR-120)', () => {
+  const { repo, dir } = tempRepo();
+  const profileDir = join(dir, 'profiles');
+  const targetDir = join(dir, 'target');
+  const source = join(dir, 'library/SKILL.md');
+  mkdirSync(join(dir, 'library'), { recursive: true });
+  writeFileSync(source, '# deploy me\n');
+  writeDeployProfile(profileDir, targetDir);
+  repo.upsertArtifact(
+    artifact({ id: 'deployable', path: source, organizationalPath: '.', capabilities: [{ type: 'skill', dialect: 'agent-md' }] }),
+  );
+  repo.close();
+
+  const env = { ...process.env, QM_DB_PATH: join(dir, 'catalog.sqlite'), QM_PROFILE_DIR: profileDir };
+  execFileSync('bun', ['src/cli/index.ts', 'deploy', 'custom-deploy', '--yes', '--json'], { cwd: process.cwd(), env, encoding: 'utf8' });
+
+  const guidancePath = join(targetDir, 'AGENTS.md');
+  expect(existsSync(guidancePath)).toBe(true);
+  const guidance = readFileSync(guidancePath, 'utf8');
+  expect(guidance).toContain('MANAGED BY QUARTERMASTER');
+  expect(guidance).toContain('custom-deploy Guidance');
+});

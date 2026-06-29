@@ -16,10 +16,19 @@ import { scanRisks } from '@core/risk/scanner';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
+import { safetyCommand } from './safety';
+
+/** Re-dispatch into `qm safety <sub> …`, preserving flags. */
+function delegateSafety(args: ParsedArgs, sub: string, rest: string[]): Promise<OutputEnvelope> {
+  return safetyCommand({ ...args, positional: [sub, ...rest] });
+}
 
 export async function auditCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   if (args.positional[0] === 'override') return overrideCommand(args);
   if (args.positional[0] === 'risk') return riskCommand();
+  // FR-140/141: safety auditing + threshold live under `qm audit` too.
+  if (args.positional[0] === 'safety') return delegateSafety(args, 'audit', args.positional.slice(1));
+  if (args.positional[0] === 'threshold') return delegateSafety(args, 'threshold', args.positional.slice(1));
 
   const cfg = loadConfig();
   const repo = new Repository({ dbPath: cfg.dbPath });
@@ -44,6 +53,11 @@ export async function auditCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   } finally {
     repo.close();
   }
+}
+
+/** Top-level `qm allowlist add/remove/list` (FR-142), delegating to safety. */
+export function allowlistCommand(args: ParsedArgs): Promise<OutputEnvelope> {
+  return safetyCommand({ ...args, positional: ['allowlist', ...args.positional] });
 }
 
 async function riskCommand(): Promise<OutputEnvelope> {

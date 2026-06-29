@@ -94,6 +94,13 @@ export function unionPluginCapabilities(manifest: Record<string, unknown>): Capa
 function inferSkillCapabilities(artifact: Artifact): Capability[] {
   const caps: Capability[] = [{ type: 'skill', dialect: 'agent-md' }];
 
+  // FR-004: a skill whose body references an MCP server requires the mcp
+  // capability. The scanner records this as `metadata.referencesMcp` so the
+  // capability set stays derived from metadata (single source of truth).
+  if (artifact.metadata?.referencesMcp === true) {
+    caps.push({ type: 'mcp', dialect: 'single-server' });
+  }
+
   const grade = artifact.metadata?.grade as string | undefined;
   if (grade && grade.toUpperCase() === 'A') {
     caps.push({ type: 'quality-assured', dialect: 'agent-md' });

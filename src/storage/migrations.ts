@@ -116,6 +116,39 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS verdict_overrides;
     `,
   },
+  {
+    version: 4,
+    name: 'add-safety-findings-allowlist',
+    up: `
+      CREATE TABLE IF NOT EXISTS findings (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        artifactId   TEXT NOT NULL,
+        source       TEXT NOT NULL,
+        severity     TEXT NOT NULL,
+        description  TEXT NOT NULL,
+        recommendation TEXT,
+        createdAt    TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_findings_artifact ON findings(artifactId);
+      CREATE TABLE IF NOT EXISTS allowlist (
+        kind     TEXT NOT NULL,
+        value    TEXT NOT NULL,
+        reason   TEXT NOT NULL DEFAULT '',
+        addedAt  TEXT NOT NULL,
+        PRIMARY KEY (kind, value)
+      );
+      CREATE TABLE IF NOT EXISTS safety_overrides (
+        artifactId TEXT NOT NULL PRIMARY KEY,
+        note       TEXT NOT NULL,
+        createdAt  TEXT NOT NULL
+      );
+    `,
+    down: `
+      DROP TABLE IF EXISTS findings;
+      DROP TABLE IF EXISTS allowlist;
+      DROP TABLE IF EXISTS safety_overrides;
+    `,
+  },
 ];
 
 const CURRENT_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

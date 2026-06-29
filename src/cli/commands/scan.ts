@@ -5,9 +5,19 @@
 
 import { rescanIncremental, scanRoots } from '@core/catalog/scanner';
 import { loadConfig } from '@core/config/load';
+import { auditOnIngest } from '@core/safety/ingest';
+import type { Artifact } from '@core/types';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
+
+/** FR-141: audit newly-cataloged artifacts (e.g. self-authored) automatically. */
+async function auditNewlyCataloged(repo: Repository, added: Artifact[]): Promise<void> {
+  const at = new Date().toISOString();
+  for (const artifact of added) {
+    await auditOnIngest(repo, artifact, at);
+  }
+}
 
 export async function scanCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   const cfg = loadConfig();
@@ -15,6 +25,7 @@ export async function scanCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   try {
     if (args.flags.incremental === true) {
       const r = await rescanIncremental(repo);
+      await auditNewlyCataloged(repo, r.added);
       return success('scan', {
         mode: 'incremental',
         added: r.added.length,
@@ -29,6 +40,7 @@ export async function scanCommand(args: ParsedArgs): Promise<OutputEnvelope> {
       return failure('scan', 'no roots configured — pass a path or set `roots` via `qm config set`');
     }
     const r = await scanRoots(roots, repo);
+    await auditNewlyCataloged(repo, r.added);
     return success('scan', {
       mode: 'full',
       roots,

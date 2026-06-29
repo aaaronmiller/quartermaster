@@ -10,6 +10,19 @@ import type { Artifact, DeploymentOperation, DeploymentPlan, HarnessProfile } fr
 export interface PlanOptions {
   scope?: Artifact[] | PlanScope;
   libraryRoot?: string;
+  /** Safety gate (FR-141): block artifacts below threshold unless overridden/allowlisted. */
+  safety?: PlanSafetyGate;
+}
+
+export interface PlanSafetyGate {
+  /** Minimum safety score in [0, 1] required to deploy. */
+  threshold: number;
+  /** artifactId → computed safety score (absent = treated as fully safe, 1.0). */
+  scores: Record<string, number>;
+  /** artifactIds with a recorded developer override (deploy despite low score). */
+  overrides?: ReadonlySet<string>;
+  /** artifactIds exempt from gating via the trusted allowlist. */
+  allowlisted?: ReadonlySet<string>;
 }
 
 export interface PlanScope {
@@ -52,6 +65,21 @@ export function compilePlan(
     if (verdict.verdict === 'incompatible') {
       excluded.push({ artifact: artifact.id, reason: verdict.reason });
       continue;
+    }
+
+    // FR-141: safety threshold gate. Below-threshold artifacts are excluded
+    // unless allowlisted or covered by a recorded developer override.
+    const gate = options?.safety;
+    if (gate) {
+      const score = gate.scores[artifact.id] ?? 1;
+      const exempt = gate.allowlisted?.has(artifact.id) || gate.overrides?.has(artifact.id);
+      if (!exempt && score < gate.threshold) {
+        excluded.push({
+          artifact: artifact.id,
+          reason: `safety score ${score.toFixed(2)} below threshold ${gate.threshold.toFixed(2)} (record an override to deploy)`,
+        });
+        continue;
+      }
     }
 
     // Resolve target path from profile

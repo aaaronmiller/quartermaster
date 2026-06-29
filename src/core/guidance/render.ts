@@ -179,6 +179,7 @@ export function renderGuidance(input: GuidanceInput): GuidanceDocument {
   return {
     path: harnessGuidanceFilename(targetHarness),
     harness: targetHarness,
+    content: fullContent,
     managed: managedJoined,
     unmanaged: unmanagedContent,
     sections,

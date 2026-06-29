@@ -6,6 +6,27 @@
 
 import type { RiskSeverity, SafetyFinding } from '@core/types';
 
+// ─── Safety scoring (FR-141) ──────────────────────────────────
+
+/** Per-severity penalty applied to the safety score. */
+const SEVERITY_PENALTY: Record<RiskSeverity, number> = {
+  low: 0.1,
+  medium: 0.3,
+  high: 0.6,
+  critical: 1.0,
+};
+
+/**
+ * Compute a normalized safety score in [0, 1] from a set of findings.
+ * Score = 1 - (worst single-finding penalty). No findings → 1.0 (fully safe).
+ * Deploy gating compares this against the developer-configured threshold.
+ */
+export function computeSafetyScore(findings: SafetyFinding[]): number {
+  if (findings.length === 0) return 1;
+  const worst = Math.max(...findings.map((f) => SEVERITY_PENALTY[f.severity] ?? 0));
+  return Math.max(0, Math.min(1, 1 - worst));
+}
+
 // ─── Allowlist ────────────────────────────────────────────────
 
 export interface AllowlistEntry {

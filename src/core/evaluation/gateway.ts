@@ -1,13 +1,20 @@
 // ─────────────────────────────────────────────────────────────
 // Quartermaster — Model Gateway Client
-// Provider-agnostic LLM gateway for agentic evaluation.
-// FR-103: Route through developer-configured endpoint.
-// NFR-061: Provider-agnostic, not bound to one vendor.
+// Provider-agnostic, config-driven, and mockable for tests.
 // ─────────────────────────────────────────────────────────────
 
+import { resolveApiKey } from '@core/config/secrets';
+import type { QuartermasterConfig } from '@core/config/schema';
 import type { GatewayConfig, GatewayResponse } from '@core/types';
 
-// ─── Errors ─────────────────────────────────────────────────
+export interface GatewayMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface GatewayCallOptions {
+  fetchImpl?: typeof fetch;
+}
 
 export class GatewayError extends Error {
   constructor(
@@ -19,152 +26,101 @@ export class GatewayError extends Error {
   }
 }
 
-export class GatewayTimeoutError extends GatewayError {
-  constructor(public readonly operation: string) {
-    super(`Gateway timeout during ${operation}`);
-    this.name = 'GatewayTimeoutError';
-  }
+export function resolveGatewayConfig(
+  config: QuartermasterConfig,
+  task: string,
+  env: Record<string, string | undefined> = process.env,
+): GatewayConfig {
+  const model = config.eval.models[task] ?? config.eval.defaultModel;
+  const apiKey = resolveApiKey(config, env);
+  return {
+    provider: config.eval.provider,
+    baseUrl: config.eval.baseUrl,
+    model,
+    timeout: 30_000,
+    maxRetries: 0,
+    ...(apiKey ? { apiKey } : {}),
+  };
 }
 
-// ─── Severity helpers ────────────────────────────────────────
-
-const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-const BACKOFF_MS = [100, 200, 400];
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+export async function singleTurn(
+  prompt: string,
+  config: GatewayConfig,
+  options: GatewayCallOptions = {},
+): Promise<GatewayResponse> {
+  return chatComplete([{ role: 'user', content: prompt }], config, options);
 }
 
-// ─── Core HTTP call ──────────────────────────────────────────
+export async function multiTurn(
+  messages: GatewayMessage[],
+  config: GatewayConfig,
+  options: GatewayCallOptions = {},
+): Promise<GatewayResponse> {
+  return chatComplete(messages, config, options);
+}
 
 async function chatComplete(
-  messages: Array<{ role: string; content: string }>,
+  messages: GatewayMessage[],
   config: GatewayConfig,
+  options: GatewayCallOptions,
 ): Promise<GatewayResponse> {
-  if (messages.length === 0 || !messages[0]?.content?.trim()) {
-    throw new GatewayError('Empty prompt');
-  }
-
-  // Resolve API key from env if not in config
-  const apiKey =
-    config.apiKey ?? process.env['OPENAI_API_KEY'] ?? process.env['ANTHROPIC_API_KEY'] ?? undefined;
-
   if (!config.baseUrl) {
-    throw new GatewayError(
-      'No model endpoint configured. Set baseUrl in gateway config or run: qm config set eval.baseUrl <url>',
-    );
+    throw new GatewayError('No model endpoint configured. Set eval.baseUrl before running evaluation.');
+  }
+  if (!config.model) {
+    throw new GatewayError('No model configured. Set eval.defaultModel or eval.models.<task>.');
   }
 
-  const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
 
-  const body = JSON.stringify({
-    model: config.model,
-    messages,
-    max_tokens: 4096,
+  const response = await fetchImpl(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ model: config.model, messages }),
   });
 
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
-    if (attempt > 0) {
-      const delay = BACKOFF_MS[attempt - 1] ?? 400;
-      await sleep(delay);
-    }
+  if (!response.ok) {
+    throw new GatewayError(`Gateway returned ${response.status}`);
+  }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+  return parseResponse(await response.json(), config.model);
+}
 
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers,
-        body,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+export function parseResponse(json: unknown, fallbackModel: string): GatewayResponse {
+  if (typeof json !== 'object' || json === null) {
+    throw new GatewayError('Unexpected response shape: non-object response');
+  }
+  const obj = json as Record<string, unknown>;
 
-      if (resp.status === 401) {
-        throw new GatewayError(
-          `Authentication failed (401). Set OPENAI_API_KEY or ANTHROPIC_API_KEY env var.`,
-        );
-      }
-
-      if (!resp.ok && !RETRYABLE_STATUS.has(resp.status)) {
-        const raw = await resp.text().catch(() => '');
-        throw new GatewayError(`Gateway returned ${resp.status}: ${raw.slice(0, 200)}`);
-      }
-
-      if (!resp.ok) {
-        // Retryable
-        lastError = new GatewayError(`Gateway returned ${resp.status}`);
-        continue;
-      }
-
-      const json: unknown = await resp.json();
-      return parseResponse(json, config.model);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if ((err as Error)?.name === 'AbortError') {
-        throw new GatewayTimeoutError('chat completion');
-      }
-      if (err instanceof GatewayError) throw err;
-      lastError = err;
+  const choices = obj.choices;
+  if (Array.isArray(choices)) {
+    const first = choices[0] as Record<string, unknown> | undefined;
+    const message = first?.message as Record<string, unknown> | undefined;
+    if (typeof message?.content === 'string') {
+      return response(message.content, obj, fallbackModel);
     }
   }
 
-  throw new GatewayError(`All ${config.maxRetries + 1} attempts failed`, lastError);
+  if (typeof obj.output_text === 'string') return response(obj.output_text, obj, fallbackModel);
+  if (typeof obj.content === 'string') return response(obj.content, obj, fallbackModel);
+
+  throw new GatewayError(`Unexpected response shape: ${JSON.stringify(json).slice(0, 200)}`);
 }
 
-function parseResponse(json: unknown, fallbackModel: string): GatewayResponse {
-  if (
-    typeof json !== 'object' ||
-    json === null ||
-    !('choices' in json) ||
-    !Array.isArray((json as Record<string, unknown>)['choices'])
-  ) {
-    throw new GatewayError(`Unexpected response shape: ${JSON.stringify(json).slice(0, 200)}`);
-  }
-
-  const choices = (json as { choices: unknown[] }).choices;
-  const first = choices[0];
-  if (typeof first !== 'object' || first === null || !('message' in first)) {
-    throw new GatewayError('No choices in response');
-  }
-
-  const msg = (first as { message: { content?: string } }).message;
-  const content = msg?.content ?? '';
-
-  const usage = (json as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
-  const model = (json as { model?: string }).model ?? fallbackModel;
-
-  const result: GatewayResponse = { content, model };
-  if (usage) {
-    result.usage = {
-      promptTokens: usage.prompt_tokens ?? 0,
-      completionTokens: usage.completion_tokens ?? 0,
-    };
-  }
-  return result;
-}
-
-// ─── Public API ──────────────────────────────────────────────
-
-/**
- * FR-103: Single-turn model call.
- */
-export async function singleTurn(prompt: string, config: GatewayConfig): Promise<GatewayResponse> {
-  return chatComplete([{ role: 'user', content: prompt }], config);
-}
-
-/**
- * FR-103: Multi-turn model call with full message history.
- */
-export async function multiTurn(
-  messages: Array<{ role: string; content: string }>,
-  config: GatewayConfig,
-): Promise<GatewayResponse> {
-  return chatComplete(messages, config);
+function response(content: string, obj: Record<string, unknown>, fallbackModel: string): GatewayResponse {
+  const usage = obj.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+  return {
+    content,
+    model: typeof obj.model === 'string' ? obj.model : fallbackModel,
+    ...(usage
+      ? {
+          usage: {
+            promptTokens: usage.prompt_tokens ?? 0,
+            completionTokens: usage.completion_tokens ?? 0,
+          },
+        }
+      : {}),
+  };
 }

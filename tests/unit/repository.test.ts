@@ -111,6 +111,7 @@ describe('Repository round-trip', () => {
     repo.saveProposal({ ...prop, status: 'accepted', acceptedAt: '2026-06-29T02:00:00Z' });
     expect(repo.getProposal('prop-1')?.status).toBe('accepted');
     expect(repo.listProposals('accepted')).toHaveLength(1);
+    expect(repo.listPropos);
     expect(repo.listProposals('pending')).toHaveLength(0);
 
     expect(repo.deleteProposal('prop-1')).toBe(true);

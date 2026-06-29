@@ -5,18 +5,27 @@
 // returns an honest "not implemented" envelope (never a fake success).
 // ─────────────────────────────────────────────────────────────
 
-import { auditCommand } from './commands/audit';
+import { allowlistCommand, auditCommand } from './commands/audit';
 import { listCommand } from './commands/catalog';
 import { composeCommand } from './commands/compose';
+import { guidanceCommand } from './commands/guidance';
+import { pipelineCommand } from './commands/pipeline';
 import { configCommand } from './commands/config';
 import { deployCommand, rollbackCommand } from './commands/deploy';
+import { evalCommand } from './commands/eval';
 import { importCommand } from './commands/import';
 import { loadoutCommand } from './commands/loadout';
+import { mcpCommand } from './commands/mcp';
 import { newCommand } from './commands/new';
 import { profileCommand } from './commands/profile';
+import { queryCommand } from './commands/query';
+import { safetyCommand } from './commands/safety';
+import { proposalCommand, proposeCommand } from './commands/proposal';
 import { scanCommand } from './commands/scan';
 import { statusCommand } from './commands/status';
 import { pinCommand, syncCommand, unpinCommand } from './commands/sync';
+import { tuiCommand } from './commands/tui';
+import { webCommand } from './commands/web';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
 
 const VERSION = '3.0.0';
@@ -49,15 +58,18 @@ const COMMANDS: Record<string, CommandSpec> = {
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050', handler: newCommand },
   compose: { summary: 'Validate optional artifact composition chains', fr: 'FR-080', handler: composeCommand },
   loadout: { summary: 'Manage loadouts', fr: 'FR-090..094', handler: loadoutCommand },
-  pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },
-  eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105' },
-  proposal: { summary: 'Review agentic proposals', fr: 'FR-104,105' },
-  guidance: { summary: 'Edit and deploy guidance files', fr: 'FR-120..122' },
-  safety: { summary: 'Safety auditor management', fr: 'FR-140..142' },
-  query: { summary: 'Agent query interface (machine-readable)', fr: 'FR-130,131' },
+  pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113', handler: pipelineCommand },
+  eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105', handler: evalCommand },
+  proposal: { summary: 'Review agentic proposals', fr: 'FR-104,105', handler: proposalCommand },
+  propose: { summary: 'Generate advisory proposals', fr: 'FR-105', handler: proposeCommand },
+  guidance: { summary: 'Edit and deploy guidance files', fr: 'FR-120..122', handler: guidanceCommand },
+  safety: { summary: 'Safety auditor management', fr: 'FR-140..142', handler: safetyCommand },
+  allowlist: { summary: 'Manage the trusted safety allowlist', fr: 'FR-142', handler: allowlistCommand },
+  query: { summary: 'Agent query interface (machine-readable)', fr: 'FR-130,131', handler: queryCommand },
+  mcp: { summary: 'Optional MCP query server (CLI stays primary)', fr: 'FR-132', handler: mcpCommand },
   config: { summary: 'Get/set local configuration', fr: 'Phase 0 / config', handler: configCommand },
-  tui: { summary: 'Launch terminal interface', fr: 'NFR-052' },
-  web: { summary: 'Serve local web interface', fr: 'NFR-052' },
+  tui: { summary: 'Launch terminal interface', fr: 'NFR-052', handler: tuiCommand },
+  web: { summary: 'Serve local web interface', fr: 'NFR-052', handler: webCommand },
 };
 
 function printVersion(json: boolean): void {

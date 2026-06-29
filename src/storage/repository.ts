@@ -10,6 +10,7 @@ import type {
   EvaluationProposal,
   LoadoutDefinition,
   PipelineDefinition,
+  SafetyFinding,
 } from '@core/types';
 import { MigrationError, runMigrations } from './migrations';
 
@@ -380,7 +381,12 @@ export class Repository {
     return row ? rowToProposal(row) : null;
   }
 
-  /** List proposals, optionally filtered by status. */
+  /** List deployment records, optionally filtered by harness. (alias for getDeployments) */
+  listDeployments(harness?: string): DeploymentRecord[] {
+    return this.getDeployments(harness);
+  }
+
+  /** List proposal records, optionally filtered by status. */
   listProposals(status?: EvaluationProposal['status']): EvaluationProposal[] {
     let sql = 'SELECT * FROM proposals';
     const params: string[] = [];
@@ -416,7 +422,82 @@ export class Repository {
     return (params && params.length > 0 ? stmt.get(...params) : stmt.get()) as T | null;
   }
 
+  // ── Safety findings (FR-140) ──────────────────────────────
+
+  /** Replace the normalized findings for an artifact (idempotent per audit run). */
+  saveFindings(artifactId: string, findings: SafetyFinding[], at: string): void {
+    const tx = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM findings WHERE artifactId = ?').run(artifactId);
+      const insert = this.db.prepare(
+        'INSERT INTO findings (artifactId, source, severity, description, recommendation, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      for (const f of findings) {
+        insert.run(artifactId, f.source, f.severity, f.description, f.recommendation ?? null, at);
+      }
+    });
+    tx();
+  }
+
+  /** Return the normalized findings recorded for an artifact. */
+  getFindings(artifactId: string): SafetyFinding[] {
+    const rows = this.db
+      .prepare('SELECT artifactId, source, severity, description, recommendation FROM findings WHERE artifactId = ?')
+      .all(artifactId) as Array<Record<string, unknown>>;
+    return rows.map((r) => ({
+      artifactId: r.artifactId as string,
+      source: r.source as string,
+      severity: r.severity as SafetyFinding['severity'],
+      description: r.description as string,
+      recommendation: (r.recommendation as string) ?? '',
+    }));
+  }
+
+  // ── Trusted allowlist (FR-142) ────────────────────────────
+
+  addAllowlistEntry(kind: string, value: string, reason: string, at: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO allowlist (kind, value, reason, addedAt) VALUES (?, ?, ?, ?)')
+      .run(kind, value, reason, at);
+  }
+
+  removeAllowlistEntry(value: string): void {
+    this.db.prepare('DELETE FROM allowlist WHERE value = ?').run(value);
+  }
+
+  listAllowlist(): Array<{ kind: string; value: string; reason: string; addedAt: string }> {
+    return this.db.prepare('SELECT kind, value, reason, addedAt FROM allowlist').all() as Array<{
+      kind: string;
+      value: string;
+      reason: string;
+      addedAt: string;
+    }>;
+  }
+
+  // ── Safety override (FR-141) ──────────────────────────────
+
+  saveSafetyOverride(artifactId: string, note: string, at: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO safety_overrides (artifactId, note, createdAt) VALUES (?, ?, ?)')
+      .run(artifactId, note, at);
+  }
+
+  getSafetyOverride(artifactId: string): { artifactId: string; note: string; createdAt: string } | null {
+    return this.db
+      .prepare('SELECT artifactId, note, createdAt FROM safety_overrides WHERE artifactId = ?')
+      .get(artifactId) as { artifactId: string; note: string; createdAt: string } | null;
+  }
+
+  listSafetyOverrides(): string[] {
+    const rows = this.db.prepare('SELECT artifactId FROM safety_overrides').all() as Array<{ artifactId: string }>;
+    return rows.map((r) => r.artifactId);
+  }
+
   // ── Misc ──────────────────────────────────────────────────
+
+  /** Run `fn` inside a single transaction (batches many writes into one commit). */
+  transaction(fn: () => void): void {
+    this.db.transaction(fn)();
+  }
 
   /** Verify database integrity. */
   integrityCheck(): string[] {

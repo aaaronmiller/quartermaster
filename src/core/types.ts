@@ -283,6 +283,8 @@ export interface PipelineDefinition {
 export interface GuidanceDocument {
   path: string;
   harness: string;
+  /** Full file content to write: unmanaged developer text plus delimited managed sections. */
+  content: string;
   managed: string;
   unmanaged: string;
   sections: Array<{

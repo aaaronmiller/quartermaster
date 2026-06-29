@@ -5,13 +5,19 @@
 
 import { computeCompatibilityMatrix, loadVerdictOverrides } from '@core/audit/auditor';
 import { loadConfig } from '@core/config/load';
-import { compilePlan, type PlanScope } from '@core/deploy/plan';
+import { compilePlan, type PlanOptions, type PlanSafetyGate, type PlanScope } from '@core/deploy/plan';
+import type { Artifact } from '@core/types';
+import { computeSafetyScore } from '@core/safety/findings';
 import { executePlacement } from '@core/deploy/placer';
 import { createRecord, storeRecord } from '@core/deploy/records';
 import { rollbackDeployment } from '@core/deploy/rollback';
+import { renderGuidance, harnessGuidanceFilename } from '@core/guidance/render';
 import { LoadoutManager } from '@core/loadouts/loadouts';
+import { PipelineManager } from '@core/pipelines/pipelines';
 import { ProfileRegistry } from '@core/profiles/profile-registry';
 import { Repository } from '@storage/repository';
+import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
 
@@ -27,16 +33,46 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
     const overrides = loadVerdictOverrides(repo);
     const profiles = targets.ids.map((id) => registry.getProfile(id)).filter((p) => p !== null);
     const scope = parseScope(args.flags.scope);
+    // FR-141: build the safety gate from persisted findings/overrides/allowlist.
+    const safetyGate = buildSafetyGate(repo, artifacts, cfg.safety?.threshold ?? 0.6);
     const plans = profiles.map((profile) => {
       const scopedArtifacts = loadouts.filterArtifactsForHarness(artifacts, profile.id);
       const matrix = computeCompatibilityMatrix(scopedArtifacts, [profile], overrides);
       const verdicts = matrix.map((row) => row[0]!).filter(Boolean);
-      return compilePlan(scopedArtifacts, verdicts, profile, scope ? { scope } : undefined);
+      const planOpts: PlanOptions = { safety: safetyGate };
+      if (scope) planOpts.scope = scope;
+      return compilePlan(scopedArtifacts, verdicts, profile, planOpts);
     });
     if (args.flags.yes === true) {
       const deployments = [];
       for (const plan of plans) {
         const result = await executePlacement(plan, repo);
+        // FR-120: render and deploy guidance file for this harness
+        const profile = plan.harness ? registry.getProfile(plan.harness) : null;
+        if (profile) {
+          // FR-121/FR-122: inject the directives of the harness's active loadout;
+          // fall back to all defined pipelines when no loadout is active.
+          const loadoutMgr = new LoadoutManager(repo);
+          const activeDirectives = loadoutMgr.activePipelineDirectives(profile.id);
+          const pipelineMgr = new PipelineManager(repo);
+          const pipelines = activeDirectives.length > 0 ? activeDirectives : pipelineMgr.list();
+          const canonicalContent = `# ${profile.id} Guidance\n\nManaged by Quartermaster.`;
+          const existingGuidancePath = join(plan.operations[0]?.targetPath ?? '', '..', harnessGuidanceFilename(profile.id));
+          const existingFile = existsSync(existingGuidancePath)
+            ? readFileSync(existingGuidancePath, 'utf8')
+            : '';
+          const rendered = renderGuidance({
+            canonical: canonicalContent,
+            pipelineDirectives: pipelines,
+            targetHarness: profile.id,
+            existingFile,
+          });
+          const guidancePath = join(
+            plan.operations[0]?.targetPath.split('/').slice(0, -1).join('/') ?? '.',
+            harnessGuidanceFilename(profile.id),
+          );
+          writeFileSync(guidancePath, rendered.content);
+        }
         const record = createRecord(
           plan,
           result.operations.some((op) => op.status === 'failed') ? 'failed' : 'applied',
@@ -57,6 +93,24 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   } finally {
     repo.close();
   }
+}
+
+/** Assemble the safety gate from persisted findings, overrides, and allowlist. */
+function buildSafetyGate(repo: Repository, artifacts: Artifact[], threshold: number): PlanSafetyGate {
+  const scores: Record<string, number> = {};
+  for (const artifact of artifacts) {
+    const findings = repo.getFindings(artifact.id);
+    if (findings.length > 0) scores[artifact.id] = computeSafetyScore(findings);
+  }
+  const overrides = new Set(repo.listSafetyOverrides());
+  const allowlistValues = repo.listAllowlist().map((e) => e.value);
+  const allowlisted = new Set<string>();
+  for (const artifact of artifacts) {
+    if (allowlistValues.includes(artifact.id) || allowlistValues.includes(artifact.source.kind)) {
+      allowlisted.add(artifact.id);
+    }
+  }
+  return { threshold, scores, overrides, allowlisted };
 }
 
 function parseScope(raw: boolean | string | undefined): PlanScope | undefined {

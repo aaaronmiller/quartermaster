@@ -141,3 +141,51 @@ test('assigning, switching, and copying loadouts changes active set without touc
     activeArtifacts: ['general-skill'],
   });
 });
+
+// ─── FR-112 / FR-113: pipelines inside loadouts + activation gating ──────────
+
+import { LoadoutManager } from '../../src/core/loadouts/loadouts';
+import { PipelineManager } from '../../src/core/pipelines/pipelines';
+
+test('activating a loadout with a pipeline includes the pipeline member skills (FR-112)', () => {
+  const repo = new Repository({ dbPath: ':memory:' });
+  repo.upsertArtifact(artifact('skill-a', '/tmp/a.md'));
+  repo.upsertArtifact(artifact('skill-b', '/tmp/b.md'));
+
+  const pipelines = new PipelineManager(repo);
+  pipelines.create({ name: 'review', artifacts: ['skill-a', 'skill-b'], directives: { priority: 5 } });
+
+  const loadouts = new LoadoutManager(repo);
+  loadouts.createNamed('coding', [], ['review']);
+  loadouts.activate('claude-code', 'coding');
+
+  // Pipeline member skills resolve into the active artifact set.
+  expect(loadouts.status('claude-code').activeArtifacts.sort()).toEqual(['skill-a', 'skill-b']);
+  // And the active pipeline directives are exposed for guidance injection (FR-121).
+  const directives = loadouts.activePipelineDirectives('claude-code');
+  expect(directives[0]?.name).toBe('review');
+  expect(directives[0]?.directives.priority).toBe(5);
+  repo.close();
+});
+
+test('loadout activation is blocked until member pipelines validate (FR-113)', () => {
+  const repo = new Repository({ dbPath: ':memory:' });
+  repo.upsertArtifact(artifact('skill-a', '/tmp/a.md'));
+
+  const pipelines = new PipelineManager(repo);
+  // References a skill that does not exist in the catalog → invalid pipeline.
+  pipelines.create({ name: 'broken', artifacts: ['skill-a', 'missing-skill'], directives: {} });
+
+  const loadouts = new LoadoutManager(repo);
+  loadouts.createNamed('coding', [], ['broken']);
+
+  expect(() => loadouts.activate('claude-code', 'coding')).toThrow(/invalid pipeline/);
+  // No loadout is active after a blocked activation.
+  expect(loadouts.status('claude-code').activeLoadout).toBeNull();
+
+  // Correcting the pipeline (add the missing artifact) unblocks activation.
+  repo.upsertArtifact(artifact('missing-skill', '/tmp/m.md'));
+  loadouts.activate('claude-code', 'coding');
+  expect(loadouts.status('claude-code').activeLoadout).toBe('coding');
+  repo.close();
+});

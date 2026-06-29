@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { join } from 'node:path';
 import { searchCatalog } from '../../src/core/catalog/search';
 import { scanRoots } from '../../src/core/catalog/scanner';
 import { copyFixtureLibrary, tempRepo } from '../helpers';
@@ -38,6 +39,19 @@ describe('capability inference (FR-004)', () => {
     await scanRoots([copyFixtureLibrary()], repo);
     const skill = repo.listArtifacts({ type: 'skill' })[0];
     expect(skill?.capabilities.map((c) => c.type)).toEqual(['skill']);
+    repo.close();
+  });
+
+  test('a skill whose body references an MCP server requires the mcp capability (T029)', async () => {
+    const { repo } = tempRepo();
+    const fixture = join(import.meta.dir, '..', 'fixtures', 'library', 'mcp-ref');
+    await scanRoots([fixture], repo);
+    const skills = repo.listArtifacts({ type: 'skill' });
+    const mcpSkill = skills.find((s) => s.name === 'mcp-using-skill');
+    const plainSkill = skills.find((s) => s.name === 'plain-skill');
+    expect(mcpSkill?.capabilities.some((c) => c.type === 'mcp')).toBe(true);
+    // A skill with no MCP reference stays pure (no over-broad capability).
+    expect(plainSkill?.capabilities.map((c) => c.type)).toEqual(['skill']);
     repo.close();
   });
 });
