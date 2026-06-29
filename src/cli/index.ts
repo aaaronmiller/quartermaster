@@ -11,6 +11,7 @@ import { composeCommand } from './commands/compose';
 import { configCommand } from './commands/config';
 import { deployCommand, rollbackCommand } from './commands/deploy';
 import { importCommand } from './commands/import';
+import { loadoutCommand } from './commands/loadout';
 import { newCommand } from './commands/new';
 import { profileCommand } from './commands/profile';
 import { scanCommand } from './commands/scan';
@@ -47,7 +48,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   profile: { summary: 'Manage harness profiles', fr: 'FR-020..023', handler: profileCommand },
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050', handler: newCommand },
   compose: { summary: 'Validate optional artifact composition chains', fr: 'FR-080', handler: composeCommand },
-  loadout: { summary: 'Manage loadouts', fr: 'FR-090..094' },
+  loadout: { summary: 'Manage loadouts', fr: 'FR-090..094', handler: loadoutCommand },
   pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113' },
   eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105' },
   proposal: { summary: 'Review agentic proposals', fr: 'FR-104,105' },

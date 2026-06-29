@@ -348,30 +348,30 @@ Independently disableable; MUST NOT block core deployment. Build only after Phas
 Depends on: Phases 4 & 5. `loadouts.ts` + `manager.ts` exist; verify.
 
 ### FR-090 — Define named loadouts (sets of artifacts + pipelines, harness-independent)
-- [ ] T163 [FR-090] Audit loadout model (membership of artifacts + pipelines) — File: src/core/loadouts/loadouts.ts · Verify: loadout stores members independent of harness
-- [ ] T164 [FR-090] Wire `qm loadout create/add/remove/list` — File: src/cli/commands/loadout.ts · Verify: create coding/general/business loadouts with distinct membership
-- [ ] T165 [FR-090] Test distinct-membership loadouts — File: tests/integration/loadouts.test.ts · Verify: `bun test loadouts` green
+- [x] T163 [FR-090] Audit loadout model (membership of artifacts + pipelines) — File: src/core/loadouts/loadouts.ts · Verify ✅: manager normalizes artifact/pipeline members independent of harness assignment.
+- [x] T164 [FR-090] Wire `qm loadout create/add/remove/list` — File: src/cli/commands/loadout.ts · Verify ✅: CLI creates coding/general/business loadouts with distinct membership.
+- [x] T165 [FR-090] Test distinct-membership loadouts — File: tests/integration/loadouts.test.ts · Verify ✅: `bun test tests/integration/loadouts.test.ts` green.
 
 ### FR-091 — Assign loadout to harness(es); switching changes active set
-- [ ] T166 [FR-091] Audit `manager.ts` assignment + reassignment — File: src/core/loadouts/manager.ts · Verify: assign loadout → its compatible members active
-- [ ] T167 [FR-091] Switching loadout updates harness's active set — File: src/core/loadouts/manager.ts · Verify: switch coding→general updates harness
-- [ ] T168 [FR-091] Wire `qm loadout assign <loadout> <harness>` — File: src/cli/commands/loadout.ts · Verify: assignment deploys exactly that loadout's compatible members
-- [ ] T169 [FR-091] Test assign + switch — File: tests/integration/loadouts.test.ts · Verify: assertions green
+- [x] T166 [FR-091] Audit `manager.ts` assignment + reassignment — File: src/core/loadouts/manager.ts · Verify ✅: manager reuses the canonical loadout implementation; assign loadout → active members filter deploy plans.
+- [x] T167 [FR-091] Switching loadout updates harness's active set — File: src/core/loadouts/manager.ts · Verify ✅: switch coding→general updates active plan members.
+- [x] T168 [FR-091] Wire `qm loadout assign <loadout> <harness>` — File: src/cli/commands/loadout.ts · Verify ✅: assignment causes deploy dry-run to include exactly that loadout's compatible members.
+- [x] T169 [FR-091] Test assign + switch — File: tests/integration/loadouts.test.ts · Verify ✅: assertions green.
 
 ### FR-092 — Deactivate non-loadout artifacts (least destructive), keep in library
-- [ ] T170 [FR-092] Deactivate via least-destructive harness mechanism (not delete from library) — File: src/core/loadouts/manager.ts · Verify: deactivated artifact removed from active set, present in library
-- [ ] T171 [FR-092] Reactivation by switching loadouts works — File: src/core/loadouts/manager.ts · Verify: switching back reactivates
-- [ ] T172 [FR-092] Test deactivate/reactivate — File: tests/integration/loadouts.test.ts · Verify: assertion passes
+- [x] T170 [FR-092] Deactivate via least-destructive harness mechanism (not delete from library) — File: src/core/loadouts/manager.ts · Verify ✅: inactive loadout members are removed from active deploy set while source library files remain.
+- [x] T171 [FR-092] Reactivation by switching loadouts works — File: src/core/loadouts/manager.ts · Verify ✅: assigning a different loadout changes active set without deleting library artifacts.
+- [x] T172 [FR-092] Test deactivate/reactivate — File: tests/integration/loadouts.test.ts · Verify ✅: assertion passes.
 
 ### FR-093 — Copy/move loadouts between harnesses
-- [ ] T173 [FR-093] Implement loadout copy/move across harnesses (subject to verdicts) — File: src/core/loadouts/manager.ts · Verify: loadout applied to second harness in one action
-- [ ] T174 [FR-093] Wire `qm loadout copy <loadout> <fromHarness> <toHarness>` — File: src/cli/commands/loadout.ts · Verify: command applies loadout to target harness
-- [ ] T175 [FR-093] Test cross-harness reuse — File: tests/integration/loadouts.test.ts · Verify: assertion passes
+- [x] T173 [FR-093] Implement loadout copy/move across harnesses (subject to verdicts) — File: src/core/loadouts/manager.ts · Verify ✅: `copyToHarness` applies an assigned loadout to a second harness in one action; deploy still computes compatibility verdicts before placement.
+- [x] T174 [FR-093] Wire `qm loadout copy <loadout> <fromHarness> <toHarness>` — File: src/cli/commands/loadout.ts · Verify ✅: command applies loadout to target harness.
+- [x] T175 [FR-093] Test cross-harness reuse — File: tests/integration/loadouts.test.ts · Verify ✅: assertion passes.
 
 ### FR-094 — Report active loadout + active artifact count per harness
-- [ ] T176 [FR-094] Report active loadout name + active artifact count/identity per harness — File: src/core/loadouts/manager.ts · Verify: status returns loadout + count
-- [ ] T177 [FR-094] Surface in `qm status` / `qm loadout status` — File: src/cli/commands/status.ts · Verify: status view shows active loadout + count per harness
-- [ ] T178 [FR-094] Test active-loadout reporting — File: tests/integration/loadouts.test.ts · Verify: assertion passes
+- [x] T176 [FR-094] Report active loadout name + active artifact count/identity per harness — File: src/core/loadouts/manager.ts · Verify ✅: status returns active loadout, count, and artifact IDs.
+- [x] T177 [FR-094] Surface in `qm status` / `qm loadout status` — File: src/cli/commands/status.ts · Verify ✅: both status views include active loadout + count per harness.
+- [x] T178 [FR-094] Test active-loadout reporting — File: tests/integration/loadouts.test.ts · Verify ✅: assertion passes.
 
 ---
 

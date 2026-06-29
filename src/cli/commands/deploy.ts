@@ -9,6 +9,7 @@ import { compilePlan, type PlanScope } from '@core/deploy/plan';
 import { executePlacement } from '@core/deploy/placer';
 import { createRecord, storeRecord } from '@core/deploy/records';
 import { rollbackDeployment } from '@core/deploy/rollback';
+import { LoadoutManager } from '@core/loadouts/loadouts';
 import { ProfileRegistry } from '@core/profiles/profile-registry';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
@@ -22,13 +23,15 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
     const targets = resolveTargets(args, cfg, registry);
     if (!targets.ok) return failure('deploy', targets.reason);
     const artifacts = repo.listArtifacts();
+    const loadouts = new LoadoutManager(repo);
     const overrides = loadVerdictOverrides(repo);
     const profiles = targets.ids.map((id) => registry.getProfile(id)).filter((p) => p !== null);
     const scope = parseScope(args.flags.scope);
     const plans = profiles.map((profile) => {
-      const matrix = computeCompatibilityMatrix(artifacts, [profile], overrides);
+      const scopedArtifacts = loadouts.filterArtifactsForHarness(artifacts, profile.id);
+      const matrix = computeCompatibilityMatrix(scopedArtifacts, [profile], overrides);
       const verdicts = matrix.map((row) => row[0]!).filter(Boolean);
-      return compilePlan(artifacts, verdicts, profile, scope ? { scope } : undefined);
+      return compilePlan(scopedArtifacts, verdicts, profile, scope ? { scope } : undefined);
     });
     if (args.flags.yes === true) {
       const deployments = [];

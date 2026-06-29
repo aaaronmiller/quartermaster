@@ -3,62 +3,9 @@
 // Manages named subsets of artifacts + pipelines per harness.
 // ─────────────────────────────────────────────────────────────
 
-import type { Artifact, LoadoutDefinition, PipelineDefinition } from '@core/types';
+import type { Artifact, PipelineDefinition } from '@core/types';
 import type { Repository } from '@storage/repository';
-
-/**
- * Loadout manager handles CRUD and activation of loadouts.
- * A loadout defines which artifacts and pipelines are deployed to which harnesses.
- */
-export class LoadoutManager {
-  constructor(private repo: Repository) {}
-
-  /** Create or update a loadout. */
-  upsertLoadout(def: LoadoutDefinition): void {
-    this.repo.upsertLoadout(def);
-  }
-
-  /** Get a loadout by name. */
-  getLoadout(name: string): LoadoutDefinition | null {
-    return this.repo.getLoadout(name);
-  }
-
-  /** List all loadouts. */
-  listLoadouts(): LoadoutDefinition[] {
-    return this.repo.listLoadouts();
-  }
-
-  /** Delete a loadout. */
-  deleteLoadout(name: string): boolean {
-    return this.repo.deleteLoadout(name);
-  }
-
-  /** Activate a loadout for a harness (deactivates others for that harness). */
-  activateLoadout(harness: string, name: string): void {
-    this.repo.activateLoadout(harness, name);
-  }
-
-  /** Get the active loadout for a harness. */
-  getActiveLoadout(harness: string): LoadoutDefinition | null {
-    const all = this.listLoadouts();
-    return all.find((l) => l.active && l.harnesses.includes(harness)) ?? null;
-  }
-
-  /** Filter artifacts by active loadout for a harness. */
-  filterArtifactsForHarness(artifacts: Artifact[], harness: string): Artifact[] {
-    const loadout = this.getActiveLoadout(harness);
-    if (!loadout) return artifacts; // No loadout → all artifacts
-
-    const ids = new Set(loadout.artifacts);
-    return artifacts.filter((a) => ids.has(a.id));
-  }
-
-  /** Get pipeline names referenced by active loadout for a harness. */
-  getActivePipelines(harness: string): string[] {
-    const loadout = this.getActiveLoadout(harness);
-    return loadout?.pipelines ?? [];
-  }
-}
+export { LoadoutError, LoadoutManager, type LoadoutStatus } from './loadouts';
 
 /**
  * Pipeline manager handles ordered artifact sequences with directives.

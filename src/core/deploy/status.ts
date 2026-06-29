@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { DeploymentRecord, HarnessProfile } from '@core/types';
+import { LoadoutManager, type LoadoutStatus } from '@core/loadouts/loadouts';
 import type { Repository } from '@storage/repository';
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
@@ -29,6 +30,7 @@ export interface HarnessStatus {
   harness: string;
   deployed: DeployedArtifact[];
   orphaned: string[];
+  loadout: LoadoutStatus;
   lastDeployment?: DeploymentRecord;
 }
 
@@ -109,6 +111,7 @@ export async function getHarnessStatus(
     harness,
     deployed,
     orphaned,
+    loadout: new LoadoutManager(repo).status(harness),
     ...(lastDeployment !== undefined ? { lastDeployment } : {}),
   };
 }
