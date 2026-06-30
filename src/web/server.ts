@@ -82,13 +82,13 @@ export interface WebServerHandle {
 }
 
 /**
- * Start the local web server. Binds 127.0.0.1 only. `port: 0` lets the OS
- * choose a free port (used by tests).
+ * Start the local web server. Binds 127.0.0.1 by default; pass 0.0.0.0
+ * for WSL2 so the server is reachable from the Windows host.
  */
-export function startWebServer(config: QuartermasterConfig = loadConfig(), port = 4319): WebServerHandle {
+export function startWebServer(config: QuartermasterConfig = loadConfig(), port = 4319, host = LOCAL_HOST): WebServerHandle {
   const repo = new Repository({ dbPath: config.dbPath });
   const server = Bun.serve({
-    hostname: LOCAL_HOST,
+    hostname: host,
     port,
     fetch: (req) => handleRequest(repo, config.profileDir, req),
   });
