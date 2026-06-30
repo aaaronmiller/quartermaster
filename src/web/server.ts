@@ -36,6 +36,13 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
     });
   }
 
+  if (path === '/assets/js/animations.js') {
+    const jsPath = new URL('../assets/js/animations.js', import.meta.url).pathname;
+    return new Response(await Bun.file(jsPath).text(), {
+      headers: { 'Content-Type': 'application/javascript' },
+    });
+  }
+
   // Advisory proposal actions (POST) — same lifecycle as the CLI.
   const action = path.match(/^\/proposals\/([^/]+)\/(accept|reject)$/);
   if (action && req.method === 'POST') {
@@ -52,17 +59,17 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
   switch (path) {
     case '/':
     case '/catalog':
-      return htmlResponse(renderCatalogPage(repo.listArtifacts()));
+      return htmlResponse(renderCatalogPage(repo.listArtifacts(), path));
     case '/matrix': {
       const artifacts = repo.listArtifacts();
       const profiles = new ProfileRegistry({ profileDirs: [profileDir] }).listProfiles();
       const matrix = computeCompatibilityMatrix(artifacts, profiles);
-      return htmlResponse(renderMatrixPage(matrix, profiles.map((p) => p.id)));
+      return htmlResponse(renderMatrixPage(matrix, profiles.map((p) => p.id), path));
     }
     case '/loadouts':
-      return htmlResponse(renderLoadoutsPage(repo.listLoadouts()));
+      return htmlResponse(renderLoadoutsPage(repo.listLoadouts(), path));
     case '/proposals':
-      return htmlResponse(renderProposalsPage(repo.listProposals()));
+      return htmlResponse(renderProposalsPage(repo.listProposals(), path));
     default:
       return new Response('Not Found', { status: 404 });
   }
