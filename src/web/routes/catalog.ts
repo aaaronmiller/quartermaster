@@ -34,7 +34,7 @@ export function renderCatalogPage(artifacts: Artifact[], path: string = '/'): st
 
   const body = `
     ${countPills}
-    <div class="glass-card accent-bar anim-section" style="padding:0; overflow:hidden;">
+    <div class="glass-card accent-bar anim-section table-wrap">
       <table>
         <thead><tr><th>Type</th><th>Name</th><th>Path</th><th>Capabilities</th></tr></thead>
         <tbody>${empty}</tbody>

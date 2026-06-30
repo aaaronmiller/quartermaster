@@ -207,9 +207,33 @@ main {
 /* ── Tables ────────────────────────────────────── */
 table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
   font-size: 13.5px;
+  table-layout: auto;
+}
+thead th {
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border-strong);
+}
+tbody tr.data-row td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+  vertical-align: middle;
+  text-align: left;
+}
+tbody tr:last-child td {
+  border-bottom: none;
 }
 thead th {
   position: sticky;
@@ -444,6 +468,10 @@ button.sm {
 }
 .glass-card {
   position: relative;
+}
+.glass-card.table-wrap {
+  padding: 0;
+  overflow: auto;
 }
 
 /* ── Responsive ────────────────────────────────── */

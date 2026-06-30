@@ -36,7 +36,7 @@ export function renderLoadoutsPage(loadouts: LoadoutDefinition[], path: string =
 
   const body = `
     ${summary}
-    <div class="glass-card accent-bar anim-section" style="padding:0; overflow:hidden;">
+    <div class="glass-card accent-bar anim-section table-wrap">
       <table>
         <thead><tr><th></th><th>Loadout</th><th>Artifacts</th><th>Pipelines</th><th>Harnesses</th></tr></thead>
         <tbody>${empty}</tbody>

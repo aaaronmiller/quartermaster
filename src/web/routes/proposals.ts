@@ -51,7 +51,7 @@ export function renderProposalsPage(proposals: EvaluationProposal[], path: strin
 
   const body = `
     ${summary}
-    <div class="glass-card accent-bar anim-section" style="padding:0; overflow:hidden;">
+    <div class="glass-card accent-bar anim-section table-wrap">
       <table>
         <thead><tr><th>Status</th><th>ID</th><th>Type</th><th>Rationale</th><th>Action</th></tr></thead>
         <tbody>${empty}</tbody>

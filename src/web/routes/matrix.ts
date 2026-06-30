@@ -42,7 +42,7 @@ export function renderMatrixPage(matrix: VerdictResult[][], harnesses: string[],
 
   const body = `
     ${summaryPills}
-    <div class="glass-card accent-bar anim-section" style="padding:0; overflow:auto;">
+    <div class="glass-card accent-bar anim-section table-wrap">
       <table>
         <thead>${head}</thead>
         <tbody>${empty}</tbody>
