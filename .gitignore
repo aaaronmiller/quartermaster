@@ -1,17 +1,35 @@
+# Dependencies (Bun)
 node_modules/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
 dist/
 build/
 coverage/
 *.log
-.env*
-.DS_Store
-Thumbs.db
 *.tmp
 *.swp
-.vscode/
-.idea/
+
+# Bun artifacts
+.bun/
+.biome_cache/
+
+# Runtime state
 .quartermaster/
 tests/tmp/
 
-# Local v1 backup, not version-controlled
+# Sealed local config (examples are .env.example — NOT ignored)
+.env
+.env.local
+.env.*
+!.env.example
+
+*.bun-build
+
+# Historical backup (preserved locally, not version-controlled)
 .archive/
