@@ -37,7 +37,7 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
   }
 
   if (path === '/assets/js/animations.js') {
-    const jsPath = new URL('../assets/js/animations.js', import.meta.url).pathname;
+    const jsPath = new URL('./assets/js/animations.js', import.meta.url).pathname;
     return new Response(await Bun.file(jsPath).text(), {
       headers: { 'Content-Type': 'application/javascript' },
     });
