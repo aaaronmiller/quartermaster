@@ -1,0 +1,528 @@
+{
+  "_meta": {
+    "file": "content/index.json",
+    "schema": "living-document-format-2.2.0",
+    "purpose": "Neutral manifest for a new living document."
+  },
+  "meta": {
+    "documentId": "quartermaster-2026-07",
+    "title": "Quartermaster",
+    "subtitle": "Deterministic catalog, compatibility, deployment, rollback, and advisory management for multi-harness agent artifacts.",
+    "version": "1.2.0",
+    "updated": "2026-07-19",
+    "status": "active",
+    "thesis": "Quartermaster is the provenance-aware control plane for a source-linked skill library, metadata-backed views, explicit loadouts, compatibility checks, and reversible deployment; the current milestone is configured and verified but not cut over.",
+    "audience": "The operator and agents integrating Quartermaster into the Agentic Operating System.",
+    "compatibility": {
+      "formatVersion": "2.2.0",
+      "skillRange": {
+        "min": "1.3.1",
+        "max": "2.0.0"
+      }
+    },
+    "scope": "project",
+    "month": "2026-07",
+    "seriesId": "project-quartermaster",
+    "projectRoot": "/home/cheta/code/_agentic-os-source-vault/active-subsystems/quartermaster"
+  },
+  "navigation": {
+    "defaultView": "dashboard",
+    "sectionOrder": [
+      "purpose-and-boundary",
+      "current-model",
+      "decisions-and-next-actions",
+      "intent-and-source-audit",
+      "work-history"
+    ],
+    "quickFilters": [
+      "foundation",
+      "model",
+      "decisions",
+      "intent",
+      "history"
+    ],
+    "showInspector": true,
+    "showReadingProgress": true
+  },
+  "dashboard": {
+    "focus": "Hold the verified source-linked prelaunch state, keep Damage Control excluded pending reconciliation, and require separate authorization before a one-harness production cut-over.",
+    "health": [
+      {
+        "id": "runtime",
+        "label": "Installed runtime",
+        "state": "good",
+        "detail": "qm resolves through ~/.local/bin to the current compiled source-vault binary and reports v3.0.0."
+      },
+      {
+        "id": "quality-gates",
+        "label": "Quality gates",
+        "state": "good",
+        "detail": "Lint is warning-free; source typecheck, 164 full tests, build, installer contract, and installed-binary parity pass."
+      },
+      {
+        "id": "version-contract",
+        "label": "Version contract",
+        "state": "good",
+        "detail": "CLI, package, MCP server, text output, and JSON output agree on 3.0.0."
+      },
+      {
+        "id": "skill-parity",
+        "label": "Agents parity",
+        "state": "attention",
+        "detail": "All 12 profiles have the 29-skill core loadout; the Codex dry run has 358 unique package-member targets and zero exclusions, but production cut-over remains intentionally unauthorized."
+      },
+      {
+        "id": "source-reconciliation",
+        "label": "Full source audit",
+        "state": "good",
+        "detail": "CASS intent evidence, original design lineage, current specification, and rejected archives are mapped in the verified source audit."
+      }
+    ],
+    "metricDefinitions": [
+      {
+        "id": "sections",
+        "label": "Addressable sections",
+        "description": "Canonical Markdown modules with stable IDs."
+      },
+      {
+        "id": "annotations",
+        "label": "Open annotations",
+        "description": "Target-specific comments awaiting resolution."
+      },
+      {
+        "id": "proposals",
+        "label": "Pending decisions",
+        "description": "Individually decidable changes."
+      },
+      {
+        "id": "local",
+        "label": "Local changes",
+        "description": "Browser overlays not yet applied to source."
+      }
+    ],
+    "pinnedSectionIds": [
+      "purpose-and-boundary",
+      "current-model",
+      "decisions-and-next-actions",
+      "intent-and-source-audit",
+      "work-history"
+    ],
+    "decisionQueueLimit": 4
+  },
+  "sections": [
+    {
+      "id": "purpose-and-boundary",
+      "index": "01",
+      "eyebrow": "Foundation",
+      "title": "Purpose and boundary",
+      "dek": "Define the problem this document governs, its audience, and what lies outside its authority.",
+      "source": "content/sections/01-purpose-and-boundary.md",
+      "tags": [
+        "foundation",
+        "scope"
+      ],
+      "status": "draft",
+      "editable": true,
+      "owner": "Document steward",
+      "updated": "2026-07-09",
+      "estimatedMinutes": 3,
+      "dependencies": [],
+      "backlinks": [
+        "current-model",
+        "decisions-and-next-actions"
+      ]
+    },
+    {
+      "id": "current-model",
+      "index": "02",
+      "eyebrow": "Model",
+      "title": "Current model",
+      "dek": "Describe the project’s present structure, assumptions, mechanisms, evidence, and unresolved tensions.",
+      "source": "content/sections/02-current-model.md",
+      "tags": [
+        "model",
+        "assumptions",
+        "evidence"
+      ],
+      "status": "draft",
+      "editable": true,
+      "owner": "Document steward",
+      "updated": "2026-07-09",
+      "estimatedMinutes": 4,
+      "dependencies": [
+        "purpose-and-boundary"
+      ],
+      "backlinks": [
+        "decisions-and-next-actions"
+      ]
+    },
+    {
+      "id": "decisions-and-next-actions",
+      "index": "03",
+      "eyebrow": "Decisions",
+      "title": "Decisions and next actions",
+      "dek": "Separate accepted direction, rejected paths, experiments, risks, and immediate work.",
+      "source": "content/sections/03-decisions-and-next-actions.md",
+      "tags": [
+        "decisions",
+        "experiments",
+        "roadmap"
+      ],
+      "status": "draft",
+      "editable": true,
+      "owner": "Document steward",
+      "updated": "2026-07-09",
+      "estimatedMinutes": 3,
+      "dependencies": [
+        "purpose-and-boundary",
+        "current-model"
+      ],
+      "backlinks": [
+        "intent-and-source-audit",
+        "work-history"
+      ]
+    },
+    {
+      "id": "intent-and-source-audit",
+      "index": "04",
+      "eyebrow": "Intent",
+      "title": "User intent and source audit",
+      "dek": "Trace current mandates to CASS evidence and authoritative design artifacts.",
+      "source": "content/sections/04-intent-and-source-audit.md",
+      "tags": ["intent", "cass", "provenance"],
+      "status": "current",
+      "editable": true,
+      "owner": "Document steward",
+      "updated": "2026-07-19",
+      "estimatedMinutes": 4,
+      "dependencies": ["purpose-and-boundary"],
+      "backlinks": ["current-model", "decisions-and-next-actions"]
+    },
+    {
+      "id": "work-history",
+      "index": "05",
+      "eyebrow": "History",
+      "title": "Work history and verification",
+      "dek": "Record substantive changes, gates, and deferred work for this milestone.",
+      "source": "content/sections/05-work-history.md",
+      "tags": ["history", "verification", "prelaunch"],
+      "status": "current",
+      "editable": true,
+      "owner": "Document steward",
+      "updated": "2026-07-19",
+      "estimatedMinutes": 4,
+      "dependencies": ["current-model", "intent-and-source-audit"],
+      "backlinks": ["decisions-and-next-actions"]
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-QM-001",
+      "title": "Adopt Quartermaster after deployment parity",
+      "summary": "Catalog the three skill ownership layers and replace manual sync only after exact dry-run, apply, preservation, and rollback parity from a clean fixture.",
+      "impact": "high",
+      "effort": "high",
+      "decision": "proposed",
+      "targetIds": [
+        "current-model",
+        "decisions-and-next-actions"
+      ],
+      "tags": [
+        "integration",
+        "parity",
+        "rollback"
+      ],
+      "createdAt": "2026-07-18T19:12:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    }
+  ],
+  "releases": [
+    {
+      "version": "1.2.0",
+      "date": "2026-07-19",
+      "title": "Source-linked prelaunch configuration",
+      "summary": "Established governing intent, repaired the catalog and installer, configured clean canonical sources and loadouts, and verified the installed runtime without production deployment.",
+      "changes": [
+        {
+          "type": "added",
+          "text": "Added CASS intent evidence, Spec Kit source map, source registry, classifications, relationships, pipeline templates, and 12 profiles.",
+          "targetIds": ["intent-and-source-audit", "current-model"]
+        },
+        {
+          "type": "fixed",
+          "text": "Fixed stable identity, duplicate content, package scans, stale full-scan rows, sync identity, capability grading, installer safety, and lint warnings.",
+          "targetIds": ["current-model", "work-history"]
+        },
+        {
+          "type": "changed",
+          "text": "Configured a 29-skill active loadout, including verified Imagegen and excluding Damage Control pending reconciliation.",
+          "targetIds": ["decisions-and-next-actions", "work-history"]
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-07-18",
+      "title": "Runtime recovery and version repair",
+      "summary": "Built, validated, installed, and corrected Quartermaster before Agentic Operating System integration.",
+      "changes": [
+        {
+          "type": "fixed",
+          "text": "Cleared 16 lint errors with scoped mechanical and parser corrections.",
+          "targetIds": [
+            "current-model"
+          ]
+        },
+        {
+          "type": "fixed",
+          "text": "Corrected global --version dispatch and unified release surfaces on 3.0.0.",
+          "targetIds": [
+            "current-model"
+          ]
+        },
+        {
+          "type": "added",
+          "text": "Installed qm and added a regression test for text and JSON version output.",
+          "targetIds": [
+            "decisions-and-next-actions"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-07-18",
+      "title": "2026-07 document initialized",
+      "summary": "Created the active project living-document surface for 2026-07.",
+      "changes": [
+        {
+          "type": "added",
+          "text": "Created the initial purpose, model, and decision sections.",
+          "targetIds": [
+            "purpose-and-boundary",
+            "current-model",
+            "decisions-and-next-actions"
+          ]
+        }
+      ]
+    }
+  ],
+  "history": [
+    {
+      "id": "H-QM-0003",
+      "timestamp": "2026-07-19T22:30:00Z",
+      "actor": "Codex",
+      "kind": "prelaunch",
+      "summary": "Audited user intent, repaired Quartermaster, and configured the source-linked prelaunch state.",
+      "targetIds": ["current-model", "decisions-and-next-actions", "intent-and-source-audit", "work-history"],
+      "version": "1.2.0",
+      "source": "agent",
+      "details": "Cataloged 437 distinct artifacts from seven linked sources, activated a 29-skill loadout across 12 profiles, verified 358 unique Codex package-member targets, and did not deploy to a harness or launch a UI server."
+    },
+    {
+      "id": "H-QM-0002",
+      "timestamp": "2026-07-18T19:12:00Z",
+      "actor": "Codex",
+      "kind": "recovery",
+      "summary": "Built, repaired, validated, and installed Quartermaster.",
+      "targetIds": [
+        "purpose-and-boundary",
+        "current-model",
+        "decisions-and-next-actions"
+      ],
+      "version": "1.1.0",
+      "source": "agent",
+      "details": "Preserved unrelated untracked control files, fixed source lint errors and version dispatch, passed 146 tests, and installed qm through a reversible symlink."
+    },
+    {
+      "id": "H-0001",
+      "timestamp": "2026-07-18T19:09:44Z",
+      "actor": "Living Document Forge",
+      "kind": "create",
+      "summary": "Created the 2026-07 project living document.",
+      "targetIds": [
+        "document"
+      ],
+      "version": "1.0.0",
+      "source": "system",
+      "details": "Created by the ld entrypoint from the canonical Living Document Forge template."
+    }
+  ],
+  "visual": {
+    "defaultTheme": "obsidian",
+    "themes": [
+      "system",
+      "obsidian",
+      "graphite",
+      "paper",
+      "high-contrast"
+    ],
+    "defaultMotion": "system",
+    "density": "comfortable",
+    "designDirection": "Obsidian Editorial Workbench"
+  },
+  "worklogs": [
+    {
+      "id": "W-QM-0003",
+      "version": "1.2.0",
+      "date": "2026-07-19",
+      "agent": "Codex",
+      "summary": "Completed Quartermaster intent audit, corrective implementation, and clean prelaunch configuration.",
+      "changed": [
+        "CASS prompt corpus and governing instruction file",
+        "Stable artifact identity and package-aware scanner",
+        "Migration v5 and upstream sync identity preservation",
+        "Twelve harness profiles and provenance-linked source registry",
+        "Classification, relationships, and starter pipeline templates",
+        "Safe installer and warning-free lint gate",
+        "29-skill active loadout across 12 profiles"
+      ],
+      "validated": [
+        "164 tests",
+        "source typecheck",
+        "warning-free lint",
+        "compiled build",
+        "installer shell and contract checks",
+        "installed qm SHA-256 parity",
+        "437-row clean catalog and incremental no-change scan",
+        "Codex dry-run: 358 unique file operations, zero exclusions, zero writes"
+      ],
+      "suggested": [
+        "Reconcile Damage Control versions",
+        "Review narrower task loadouts",
+        "Authorize one-harness cut-over when ready"
+      ],
+      "warnings": [
+        "Agents/Skillshare remains authoritative",
+        "No Quartermaster deployment or UI launch was performed",
+        "The seven-source registry is an initial canonical source map"
+      ]
+    },
+    {
+      "id": "W-0001",
+      "version": "1.0.0",
+      "date": "2026-07-18",
+      "agent": "ld",
+      "summary": "Initialized the 2026-07 project living document.",
+      "changed": [
+        "Created the project shell",
+        "Created the manifest and three seed Markdown sections",
+        "Initialized annotations, proposals, releases, history, and worklog"
+      ],
+      "validated": [
+        "Required files",
+        "JSON parsing",
+        "Section source paths",
+        "Stable IDs and relationships"
+      ],
+      "suggested": [
+        "Replace neutral claims before expanding the section count"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "W-QM-0002",
+      "version": "1.1.0",
+      "date": "2026-07-18",
+      "agent": "Codex",
+      "summary": "Recovered the Quartermaster runtime without beginning deployment cutover.",
+      "changed": [
+        "Scoped lint corrections",
+        "CLI global version dispatch",
+        "Package and MCP version surfaces",
+        "CLI version regression tests",
+        "~/.local/bin/qm"
+      ],
+      "validated": [
+        "bun run build",
+        "bun run typecheck",
+        "bun run lint",
+        "146 full tests",
+        "focused CLI/MCP tests",
+        "installed qm --version text and JSON"
+      ],
+      "suggested": [
+        "Catalog three skill ownership layers",
+        "Build clean deployment fixture",
+        "Prove 216-skill parity and rollback"
+      ],
+      "warnings": [
+        "Repository has untracked .citadel and .claude content preserved",
+        "Full family reconciliation remains open",
+        "No publication performed"
+      ]
+    }
+  ],
+  "modelReplies": [
+    {
+      "id": "MR-QM-CUTOVER",
+      "prompt": "When should Quartermaster perform its first harness deployment?",
+      "context": "The source registry, catalog, loadout, rollback record, and 358-target Codex dry run are verified; no harness has been changed.",
+      "targetIds": ["decisions-and-next-actions", "work-history"],
+      "status": "open",
+      "options": [
+        {
+          "label": "Recommended",
+          "text": "Review the 29-operation Codex plan, then authorize Codex as the single reversible pilot harness."
+        },
+        {
+          "label": "Alternative",
+          "text": "Refine the loadout into smaller task-specific sets before any harness cutover."
+        },
+        {
+          "label": "Custom",
+          "text": "Choose another harness, loadout, or cutover condition."
+        }
+      ],
+      "createdAt": "2026-07-19T22:30:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    },
+    {
+      "id": "MR-QM-DAMAGE-CONTROL",
+      "prompt": "How should Damage Control re-enter the managed loadout?",
+      "context": "The copies remain unchanged and the package is intentionally excluded until their versions are reconciled.",
+      "targetIds": ["decisions-and-next-actions", "work-history"],
+      "status": "answered",
+      "options": [
+        {
+          "label": "Recommended",
+          "text": "Wait, compare the competing copies, select or merge the canonical version with rationale, then add it to the loadout."
+        },
+        {
+          "label": "Alternative",
+          "text": "Keep all copies cataloged as variants but deploy none."
+        },
+        {
+          "label": "Custom",
+          "text": "Provide a different reconciliation rule."
+        }
+      ],
+      "createdAt": "2026-07-19T22:30:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    }
+  ],
+  "resources": [],
+  "reconciliation": {
+    "sourceLedger": "data/sources.json",
+    "ideaLedger": "data/ideas.json",
+    "scope": [
+      "AGENTS.md",
+      "specs/001-quartermaster/tasks.md",
+      "package.json",
+      "src/",
+      "tests/",
+      "current Agents deployment evidence"
+    ],
+    "readingPolicy": "Read every in-scope Markdown and text file and every script in full; catalog boilerplate, generated, dependency, and byte-identical duplicate files with explicit exemptions.",
+    "status": "in-progress",
+    "checkedAt": "2026-07-19T22:30:00Z"
+  },
+  "federation": {
+    "role": "child",
+    "projectIndex": "/home/cheta/code/agentic-operating-system/.living-documents/2026-07.livingdoc/public/data/projects.json",
+    "masterDocumentId": "agentic-operating-system-2026-07",
+    "relatedDocumentIds": [
+      "agents-2026-07"
+    ]
+  }
+}

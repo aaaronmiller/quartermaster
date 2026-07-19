@@ -46,6 +46,15 @@ describe('config precedence', () => {
     expect(cfg.eval.baseUrl).toBe('http://x');
     expect(cfg.eval.turnBudget).toBe(8); // default preserved
   });
+
+  test('deployment can require an explicit active loadout', () => {
+    const cfg = loadConfig({
+      globalPath: join(dir, 'absent-loadout.json'),
+      cwd: dir,
+      env: { QM_REQUIRE_LOADOUT: 'true' },
+    });
+    expect(cfg.deployment.requireLoadout).toBe(true);
+  });
 });
 
 describe('config validation', () => {

@@ -7,7 +7,6 @@ import type {
   ArtifactType,
   ArtifactTypeLocation,
   CapabilitySupport,
-  DeploymentConfig,
   HarnessProfile,
 } from '@core/types';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -83,7 +82,7 @@ const BUILTIN_PROFILES: HarnessProfile[] = [
     version: 1,
     guidanceFilename: 'AGENTS.md',
     artifactTypes: [
-      loc('skill', '~/.agents/skills', '.agents/skills', false, null, 'skills'),
+      loc('skill', '~/.gemini/antigravity-cli/skills', '.agents/skills', false, null, 'skills'),
       loc('agent', '~/.agents/agents', '.agents/agents', false, 'yaml', 'agents'),
       loc('hook', '~/.agents/hooks', '.agents/hooks', false, 'yaml', 'hooks'),
       loc('mcp-config', '~/.agents/mcp_config.json', '.agents/mcp_config.json', true, 'antigravity-json'),
@@ -106,7 +105,7 @@ const BUILTIN_PROFILES: HarnessProfile[] = [
     version: 1,
     guidanceFilename: 'AGENTS.md',
     artifactTypes: [
-      loc('skill', '~/.config/opencode/skill', '.opencode/skill', false, null, 'skill'),
+      loc('skill', '~/.config/opencode/skills', '.opencode/skills', false, null, 'skills'),
       loc('agent', '~/.config/opencode/agent', '.opencode/agent', false, 'yaml', 'agent'),
       loc('hook', '~/.config/opencode/hook', '.opencode/hook', false, 'yaml', 'hook'),
       loc('mcp-config', '~/.config/opencode/opencode.json', '.opencode/opencode.json', true, 'opencode-json'),
@@ -121,7 +120,33 @@ const BUILTIN_PROFILES: HarnessProfile[] = [
     ],
     deployment: { method: 'copy', crossDevice: false, priorStateBackup: true },
   },
+  skillOnlyProfile('gemini', 'Gemini CLI', 'GEMINI.md', '~/.gemini/skills', '.gemini/skills'),
+  skillOnlyProfile('qwen', 'Qwen Code', 'QWEN.md', '~/.qwen/skills', '.qwen/skills'),
+  skillOnlyProfile('hermes', 'Hermes Agent', 'AGENTS.md', '~/.hermes/skills', '.hermes/skills'),
+  skillOnlyProfile('pi', 'Pi Agent', 'AGENTS.md', '~/.pi/agent/skills', '.pi/agent/skills'),
+  skillOnlyProfile('omp', 'Oh My Pi', 'AGENTS.md', '~/.omp/agent/skills', '.omp/agent/skills'),
+  skillOnlyProfile('openclaw', 'OpenClaw', 'AGENTS.md', '~/.openclaw/skills', '.openclaw/skills'),
+  skillOnlyProfile('ante', 'Ante', 'AGENTS.md', '~/.ante/skills', '.ante/skills'),
+  skillOnlyProfile('kilocode', 'Kilo Code', '.kilocoderules', '~/.kilocode/skills', '.kilocode/skills'),
 ];
+
+function skillOnlyProfile(
+  id: string,
+  name: string,
+  guidanceFilename: string,
+  globalPath: string,
+  projectPath: string,
+): HarnessProfile {
+  return {
+    id,
+    name,
+    version: 1,
+    guidanceFilename,
+    artifactTypes: [loc('skill', globalPath, projectPath, false, null, 'skills')],
+    capabilities: [cap('skill', ['agent-md'])],
+    deployment: { method: 'link', crossDevice: false, priorStateBackup: true },
+  };
+}
 
 export class ProfileRegistry {
   private profiles = new Map<string, HarnessProfile>();
@@ -199,12 +224,16 @@ export function validateProfile(profile: HarnessProfile): ProfileValidationIssue
   if (!Array.isArray(profile.artifactTypes) || profile.artifactTypes.length === 0) {
     issues.push(issue('artifactTypes', 'at least one artifact type location is required'));
   } else {
-    profile.artifactTypes.forEach((entry, i) => validateArtifactType(entry, i, issues));
+    profile.artifactTypes.forEach((entry, i) => {
+      validateArtifactType(entry, i, issues);
+    });
   }
   if (!Array.isArray(profile.capabilities) || profile.capabilities.length === 0) {
     issues.push(issue('capabilities', 'at least one capability entry is required'));
   } else {
-    profile.capabilities.forEach((entry, i) => validateCapability(entry, i, issues));
+    profile.capabilities.forEach((entry, i) => {
+      validateCapability(entry, i, issues);
+    });
   }
   if (!profile.deployment) {
     issues.push(issue('deployment', 'deployment config is required'));

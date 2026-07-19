@@ -157,7 +157,7 @@ export function handleRpc(repo: Repository, request: JsonRpcRequest): JsonRpcRes
       case 'initialize':
         return reply(id, {
           protocolVersion: PROTOCOL_VERSION,
-          serverInfo: { name: 'quartermaster', version: '2.0.0' },
+          serverInfo: { name: 'quartermaster', version: '3.0.0' },
           capabilities: { tools: {} },
         });
       case 'notifications/initialized':
@@ -195,10 +195,11 @@ export async function startMcpServer(config: QuartermasterConfig = loadConfig())
   let buffer = '';
   for await (const chunk of Bun.stdin.stream()) {
     buffer += decoder.decode(chunk as Uint8Array);
-    let newline: number;
-    while ((newline = buffer.indexOf('\n')) >= 0) {
+    let newline = buffer.indexOf('\n');
+    while (newline >= 0) {
       const line = buffer.slice(0, newline).trim();
       buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf('\n');
       if (!line) continue;
       let request: JsonRpcRequest;
       try {

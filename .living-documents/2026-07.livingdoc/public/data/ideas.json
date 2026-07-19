@@ -1,0 +1,101 @@
+{
+  "_meta": {
+    "file": "data/ideas.json",
+    "formatVersion": "2.2.0",
+    "updated": "2026-07-19T22:30:00Z"
+  },
+  "ideas": [
+    {
+      "id": "I-QM-CANONICAL-LEDGER",
+      "sourceId": "S-QM-AGENTS",
+      "locator": "The one canonical task list",
+      "type": "constraint",
+      "summary": "Use specs/001-quartermaster/tasks.md as the only implementation ledger.",
+      "details": "",
+      "status": "incorporated",
+      "rationale": "Project-owned instructions explicitly reject earlier task lists and require named verification evidence.",
+      "targetDocument": "quartermaster-2026-07",
+      "targetAnchor": "current-model",
+      "replacementIdeaId": null,
+      "affectedProjectIds": [
+        "quartermaster"
+      ],
+      "reviewedBy": "Codex",
+      "createdAt": "2026-07-18T19:12:00Z",
+      "updatedAt": "2026-07-18T19:12:00Z"
+    },
+    {
+      "id": "I-QM-SOURCE-LIBRARY",
+      "sourceId": "S-QM-VALIDATION",
+      "locator": "Current source architecture",
+      "type": "implementation",
+      "summary": "Link canonical Git and user skill sources into provenance groups instead of copying or importing deployed harness state.",
+      "details": "",
+      "status": "incorporated",
+      "rationale": "The current deployed state is not a desirable baseline. Seven canonical sources now feed a clean first-party and third-party library with rollback evidence.",
+      "targetDocument": "quartermaster-2026-07",
+      "targetAnchor": "current-model",
+      "replacementIdeaId": null,
+      "affectedProjectIds": [
+        "quartermaster",
+        "agents-skills"
+      ],
+      "reviewedBy": "Codex",
+      "createdAt": "2026-07-18T19:12:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    },
+    {
+      "id": "I-QM-ONE-LAYER-ROOT",
+      "sourceId": "S-QM-VALIDATION",
+      "locator": "Installed binary target",
+      "type": "design",
+      "summary": "Promote Quartermaster to a real /home/cheta/code/quartermaster root after migration gates pass.",
+      "details": "",
+      "status": "pending",
+      "rationale": "The compatibility link restores operation but the permanent workspace pattern requires one visible real project root.",
+      "targetDocument": null,
+      "targetAnchor": null,
+      "replacementIdeaId": null,
+      "affectedProjectIds": [
+        "quartermaster"
+      ],
+      "reviewedBy": null,
+      "createdAt": "2026-07-18T19:12:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    },
+    {
+      "id": "I-QM-SPECIALIST-CATALOG",
+      "sourceId": "S-QM-INTENT",
+      "locator": "Specialist library mandate",
+      "type": "design",
+      "summary": "Catalog curated specialist skills without deploying them to every harness.",
+      "details": "The initial specialist source contributes 202 catalog entries and remains outside the active core loadout.",
+      "status": "incorporated",
+      "rationale": "Search and recommendation need broad visibility; runtime context should remain deliberately narrow.",
+      "targetDocument": "quartermaster-2026-07",
+      "targetAnchor": "current-model",
+      "replacementIdeaId": null,
+      "affectedProjectIds": ["quartermaster"],
+      "reviewedBy": "Codex",
+      "createdAt": "2026-07-19T22:30:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    },
+    {
+      "id": "I-QM-CURATED-LOADOUT",
+      "sourceId": "S-QM-INTENT",
+      "locator": "Prelaunch deployment boundary",
+      "type": "implementation",
+      "summary": "Use explicit loadouts and refuse deployment when a harness has no active loadout.",
+      "details": "The current core loadout contains 29 custom skills across 12 profiles, includes verified Imagegen, and excludes Damage Control pending reconciliation.",
+      "status": "incorporated",
+      "rationale": "Explicit selection prevents the clean replacement system from inheriting an accidental deployed state.",
+      "targetDocument": "quartermaster-2026-07",
+      "targetAnchor": "decisions-and-next-actions",
+      "replacementIdeaId": null,
+      "affectedProjectIds": ["quartermaster", "agents-skills"],
+      "reviewedBy": "Codex",
+      "createdAt": "2026-07-19T22:30:00Z",
+      "updatedAt": "2026-07-19T22:30:00Z"
+    }
+  ]
+}

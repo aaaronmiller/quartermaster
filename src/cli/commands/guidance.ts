@@ -3,7 +3,7 @@
 // FR-120, FR-121, FR-122: guidance file management
 // ─────────────────────────────────────────────────────────────
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { loadConfig } from '@core/config/load';
 import { renderGuidance, harnessGuidanceFilename } from '@core/guidance/render';
 import { PipelineManager } from '@core/pipelines/pipelines';
@@ -13,7 +13,7 @@ import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
 
 export function guidanceCommand(args: ParsedArgs): OutputEnvelope {
-  const [sub, harness, targetPath] = args.positional;
+  const [sub, harness, _targetPath] = args.positional;
 
   if (sub === 'filename') {
     if (!harness) return failure('guidance', 'usage: qm guidance filename <harness>');
@@ -29,7 +29,7 @@ export function guidanceCommand(args: ParsedArgs): OutputEnvelope {
 }
 
 function renderHandler(args: ParsedArgs): OutputEnvelope {
-  const [sub, harness, targetPath] = args.positional;
+  const [_sub, harness, targetPath] = args.positional;
 
   if (!harness) {
     return failure('guidance', 'usage: qm guidance render <harness>');

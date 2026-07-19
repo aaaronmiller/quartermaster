@@ -4,7 +4,7 @@
 // descriptions and optional developer instructions.
 // ─────────────────────────────────────────────────────────────
 
-import type { Artifact, PipelineDefinition, GatewayConfig } from '@core/types';
+import type { Artifact, PipelineDefinition, } from '@core/types';
 import { resolveGatewayConfig, singleTurn } from '@core/evaluation/gateway';
 import { parseJsonContent } from '@core/evaluation/json';
 import type { QuartermasterConfig } from '@core/config/schema';

@@ -1,0 +1,14 @@
+export interface PipelineTemplate {
+  id: string;
+  name: string;
+  functions: string[];
+  sequence: string[];
+}
+
+export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
+  { id: 'code-audit', name: 'Code Audit', functions: ['coding', 'audit', 'safety'], sequence: ['inventory', 'static-analysis', 'tests', 'security-review', 'findings'] },
+  { id: 'full-development', name: 'Full Development', functions: ['planning', 'design', 'coding', 'audit'], sequence: ['specification', 'implementation-plan', 'implementation', 'tests', 'review', 'release'] },
+  { id: 'advertising', name: 'Advertising', functions: ['research', 'writing', 'design', 'media'], sequence: ['audience-research', 'positioning', 'copy', 'creative', 'channel-adaptation', 'review'] },
+  { id: 'research', name: 'Research', functions: ['research', 'writing', 'audit'], sequence: ['scope', 'source-discovery', 'evidence-review', 'synthesis', 'citation-check'] },
+  { id: 'release', name: 'Release', functions: ['audit', 'operations', 'writing'], sequence: ['test', 'review', 'version', 'changelog', 'publish', 'canary'] },
+] as const;

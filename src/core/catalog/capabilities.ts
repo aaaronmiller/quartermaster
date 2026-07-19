@@ -101,11 +101,6 @@ function inferSkillCapabilities(artifact: Artifact): Capability[] {
     caps.push({ type: 'mcp', dialect: 'single-server' });
   }
 
-  const grade = artifact.metadata?.grade as string | undefined;
-  if (grade && grade.toUpperCase() === 'A') {
-    caps.push({ type: 'quality-assured', dialect: 'agent-md' });
-  }
-
   // Frontmatter 'requires' field can override/append
   const requires = artifact.metadata?.requires as string[] | undefined;
   if (requires && Array.isArray(requires)) {

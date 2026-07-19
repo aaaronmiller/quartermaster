@@ -142,14 +142,14 @@ The optional **MCP server** (`qm mcp serve`, opt-in via `QM_MCP_ENABLED=true`) e
 ### One-liner (macOS, Linux, WSL2)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aaaronmiller/001-quartermaster/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aaaronmiller/quartermaster/main/install.sh | bash
 ```
 
 Or clone and install manually:
 
 ```bash
-git clone https://github.com/aaaronmiller/001-quartermaster.git
-cd 001-quartermaster
+git clone https://github.com/aaaronmiller/quartermaster.git
+cd quartermaster
 ./install.sh
 ```
 
@@ -189,8 +189,11 @@ qm config set harnesses '["claude-code"]' --json
 # 5. See the compatibility matrix
 qm audit --matrix --json
 
-# 6. Dry-run deploy
+# 6. Dry-run deploy to the profile's global location
 qm deploy claude-code --json
+
+# Use --project only for a project-local installation
+qm deploy claude-code --project --json
 
 # 7. Apply
 qm deploy claude-code --yes --json
@@ -212,7 +215,8 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 
 | Command | Description |
 |---------|-------------|
-| `qm scan [roots] [--incremental]` | Scan library roots into the catalog (SHA-256, 8 artifact types) |
+| `qm scan [roots] [--incremental]` | Scan library roots into the catalog (stable identity plus SHA-256 revisions) |
+| `qm library validate\|prepare [registry] [--yes]` | Validate or build the provenance-linked source library; dry-run by default |
 | `qm list [--type=TYPE] [--capability=CAP] [--source=SRC] [--path=PATH]` | Filter catalog by type, capability, source, or path |
 | `qm search <text> [--type=TYPE] ...` | Free-text search across name / path / metadata |
 | `qm import <source> [--kind=git] [--kind=git_subdir] [--kind=marketplace] [--kind=local]` | Import from git, git subdir, marketplace, or local path |
@@ -229,7 +233,7 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 | `qm audit override <id> <harness> --status <v> --note "<n>"` | Manual verdict override |
 | `qm audit risk` | Scan risk indicators (bundled scripts, network, secrets) |
 | `qm audit safety <id>` | Run registered safety auditors; persist findings |
-| `qm deploy <harness\|--all> [--scope=<selector>] [--yes]` | Dry-run by default; apply with `--yes` |
+| `qm deploy <harness\|--all> [--scope=<selector>] [--project] [--yes]` | Global target and dry-run by default; use `--project` for project scope and `--yes` to apply |
 | `qm rollback <deployId>` | Reverse a recorded deployment |
 | `qm status <harness\|--all>` | Deployed artifacts, drift, and orphans |
 
@@ -306,8 +310,10 @@ Quartermaster uses a layered config: **defaults → global → project → env**
 | `roots` | `QUARTERMASTER_ROOTS` | `~/.quartermaster/library` | Library scan roots |
 | `dbPath` | `QUARTERMASTER_DB_PATH` | `~/.quartermaster/catalog.db` | SQLite catalog |
 | `profileDir` | `QUARTERMASTER_PROFILE_DIR` | `~/.quartermaster/profiles` | Custom profiles |
+| `sourceRegistry` | `QM_SOURCE_REGISTRY` | `~/.quartermaster/sources.yaml` | Provenance-aware source registry |
 | `harnesses` | `QUARTERMASTER_HARNESSES` | `[]` | Active harness names |
 | `harnessGroups` | `QUARTERMASTER_HARNESS_GROUPS` | `{}` | Named groups for group deploy |
+| `deployment.requireLoadout` | `QM_REQUIRE_LOADOUT` | `false` | Refuse catalog-wide deployment when no loadout is active |
 | `safety.threshold` | `QUARTERMASTER_SAFETY_THRESHOLD` | `0.6` | Deploy gate (0..1) |
 | `composition.enabled` | `QM_COMPOSITION_ENABLED` | `false` | Enable composition module |
 | `eval.provider` | `QM_EVAL_PROVIDER` | `openai-compatible` | Model provider label |

@@ -198,7 +198,7 @@ export function loadVerdictOverrides(repo: Repository): Map<string, Map<string, 
   const overrides = new Map<string, Map<string, VerdictOverride>>();
   for (const row of rows) {
     if (!overrides.has(row.artifactId)) overrides.set(row.artifactId, new Map());
-    overrides.get(row.artifactId)!.set(row.harness, { status: row.status, note: row.note });
+    overrides.get(row.artifactId)?.set(row.harness, { status: row.status, note: row.note });
   }
   return overrides;
 }

@@ -41,5 +41,12 @@ test('read commands emit a parseable JSON envelope with --json (T253)', () => {
   const { stdout } = run(['--version', '--json']);
   const envelope = JSON.parse(stdout);
   expect(envelope.ok).toBe(true);
-  expect(envelope).toHaveProperty('command');
+  expect(envelope.command).toBe('version');
+  expect(envelope.data.version).toBe('3.0.0');
+});
+
+test('global --version prints the version without requiring a command (T013)', () => {
+  const { stdout, status } = run(['--version']);
+  expect(status).toBe(0);
+  expect(stdout.trim()).toBe('quartermaster v3.0.0');
 });

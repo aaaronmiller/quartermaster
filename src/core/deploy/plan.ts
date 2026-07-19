@@ -4,12 +4,16 @@
 // verdict pairs, with scope, flatten, and transform support.
 // ─────────────────────────────────────────────────────────────
 
+import { homedir } from 'node:os';
+import { basename, isAbsolute, join, resolve } from 'node:path';
 import type { VerdictResult } from '@core/audit/auditor';
 import type { Artifact, DeploymentOperation, DeploymentPlan, HarnessProfile } from '@core/types';
 
 export interface PlanOptions {
   scope?: Artifact[] | PlanScope;
   libraryRoot?: string;
+  /** Install into the harness's global location unless project scope is explicit. */
+  targetScope?: 'global' | 'project';
   /** Safety gate (FR-141): block artifacts below threshold unless overridden/allowlisted. */
   safety?: PlanSafetyGate;
 }
@@ -92,31 +96,74 @@ export function compilePlan(
       continue;
     }
 
-    const targetDir = typeLocation.locations.project || typeLocation.locations.global;
-    const targetName = artifact.path.split('/').pop() ?? artifact.id;
-    const targetPath = `${targetDir}/${targetName}`;
-
-    const operation: DeploymentOperation = {
-      artifactId: artifact.id,
-      sourcePath: artifact.path,
-      targetPath,
-      method: profile.deployment.method,
-      provenance: artifact.provenance,
-      ...(artifact.riskFlags && artifact.riskFlags.length > 0 ? { riskFlags: artifact.riskFlags } : {}),
-    };
-
-    if (verdict.verdict === 'transform' && verdict.transformation) {
-      operation.transform = verdict.transformation;
+    const targetDir = resolveTargetDirectory(typeLocation.locations, options?.targetScope ?? 'global');
+    const packageMembers = artifact.packageRoot ? stringList(artifact.metadata.packageMembers) : [];
+    if (artifact.packageRoot && packageMembers.length > 0) {
+      const packageName = basename(artifact.packageRoot);
+      for (const member of packageMembers) {
+        operations.push(makeOperation(artifact, profile, join(artifact.packageRoot, member), join(targetDir, packageName, member)));
+      }
+      continue;
     }
 
+    const targetName = basename(artifact.path) || artifact.id;
+    const operation = makeOperation(artifact, profile, artifact.path, join(targetDir, targetName));
+    if (verdict.verdict === 'transform' && verdict.transformation) operation.transform = verdict.transformation;
     operations.push(operation);
   }
+
+  assertUniqueTargets(operations);
 
   return {
     harness: profile.id,
     operations,
     excluded,
   };
+}
+
+export function resolveTargetDirectory(
+  locations: { global: string; project: string },
+  scope: 'global' | 'project' = 'global',
+): string {
+  const configured = scope === 'project'
+    ? locations.project || locations.global
+    : locations.global || locations.project;
+  if (configured === '~') return homedir();
+  if (configured.startsWith('~/')) return join(homedir(), configured.slice(2));
+  return isAbsolute(configured) ? configured : resolve(configured);
+}
+
+function makeOperation(
+  artifact: Artifact,
+  profile: HarnessProfile,
+  sourcePath: string,
+  targetPath: string,
+): DeploymentOperation {
+  return {
+    artifactId: artifact.id,
+    sourcePath,
+    targetPath,
+    method: profile.deployment.method,
+    provenance: artifact.provenance,
+    ...(artifact.riskFlags && artifact.riskFlags.length > 0 ? { riskFlags: artifact.riskFlags } : {}),
+  };
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function assertUniqueTargets(operations: DeploymentOperation[]): void {
+  const sourcesByTarget = new Map<string, string[]>();
+  for (const operation of operations) {
+    const sources = sourcesByTarget.get(operation.targetPath) ?? [];
+    sources.push(operation.sourcePath);
+    sourcesByTarget.set(operation.targetPath, sources);
+  }
+  const collisions = Array.from(sourcesByTarget.entries()).filter(([, sources]) => sources.length > 1);
+  if (collisions.length === 0) return;
+  const details = collisions.map(([target, sources]) => `${target}: ${sources.join(', ')}`).join('; ');
+  throw new DeployError(`deployment target collision: ${details}`);
 }
 
 function artifactInScope(artifact: Artifact, scope: Artifact[] | PlanScope): boolean {

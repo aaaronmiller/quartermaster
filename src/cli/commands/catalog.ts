@@ -20,6 +20,11 @@ function buildQuery(args: ParsedArgs): SearchQuery {
     q.source = args.flags.source as 'github' | 'git' | 'marketplace' | 'local';
   }
   if (typeof args.flags.path === 'string') q.path = args.flags.path;
+  if (typeof args.flags.tag === 'string') q.tags = args.flags.tag.split(',');
+  if (typeof args.flags.lifecycle === 'string') q.lifecycle = args.flags.lifecycle;
+  if (typeof args.flags.function === 'string') q.function = args.flags.function;
+  if (typeof args.flags['source-class'] === 'string') q.sourceClass = args.flags['source-class'];
+  if (typeof args.flags.role === 'string') q.compositionRole = args.flags.role;
   // Free text comes from a positional arg (`qm search <text>`) or --text.
   const text = typeof args.flags.text === 'string' ? args.flags.text : args.positional[0];
   if (text) q.text = text;
@@ -39,6 +44,7 @@ export function listCommand(args: ParsedArgs): OutputEnvelope {
         name: a.name,
         organizationalPath: a.organizationalPath,
         capabilities: a.capabilities.map((c) => c.type),
+        classification: a.metadata.classification,
       })),
     });
   } finally {

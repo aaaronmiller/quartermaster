@@ -138,13 +138,13 @@ export function normalizeFinding(
   if (raw !== null && typeof raw === 'object') {
     const obj = raw as Record<string, unknown>;
     return {
-      severity: coerceSeverity(obj['severity']),
+      severity: coerceSeverity(obj.severity),
       source: auditorName,
       artifactId,
       description:
-        typeof obj['description'] === 'string' ? obj['description'] : JSON.stringify(raw),
+        typeof obj.description === 'string' ? obj.description : JSON.stringify(raw),
       recommendation:
-        typeof obj['recommendation'] === 'string' ? obj['recommendation'] : 'Review manually',
+        typeof obj.recommendation === 'string' ? obj.recommendation : 'Review manually',
     };
   }
 

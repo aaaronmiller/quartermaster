@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { searchCatalog } from '../../src/core/catalog/search';
 import { scanRoots } from '../../src/core/catalog/scanner';
 import { copyFixtureLibrary, tempRepo } from '../helpers';
+import { classifyArtifactMetadata } from '../../src/core/classification/classify';
 
 describe('catalog metadata (FR-003)', () => {
   test('skill records declared name, description, and version', async () => {
@@ -83,4 +84,16 @@ describe('catalog search/filter (FR-006)', () => {
     expect(results.some((a) => a.name === 'Deep Research')).toBe(true);
     repo.close();
   });
+});
+
+test('multi-axis classification separates provenance, lifecycle, and modifiers', () => {
+  const classification = classifyArtifactMetadata(
+    { tags: ['library-only'], functions: ['planning'], role: 'modifier' },
+    'third-party/specialist-curated/refinement',
+    'Deliberative Refinement',
+  );
+  expect(classification.sourceClass).toBe('third-party');
+  expect(classification.lifecycle).toBe('specialist');
+  expect(classification.functions).toContain('planning');
+  expect(classification.compositionRole).toBe('modifier');
 });

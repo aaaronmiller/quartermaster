@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { Artifact, PipelineDefinition } from '@core/types';
-import { Repository } from '@storage/repository';
+import type { Repository } from '@storage/repository';
 import { validateComposition } from '@core/composition/validate';
 import type { ComposableArtifact, CompositionChain, CompositionRole } from '@core/composition/model';
 

@@ -134,7 +134,7 @@ export interface RiskFlag {
  * in the Quartermaster library.
  */
 export interface Artifact {
-  /** Unique identifier (typically a content-hash derived or assigned name). */
+  /** Stable logical identifier. Content changes never change this value. */
   id: string;
   /** Artifact type from the controlled vocabulary. */
   type: ArtifactType;
@@ -150,6 +150,10 @@ export interface Artifact {
   organizationalPath: string;
   /** SHA-256 content hash of the file. */
   hash: string;
+  /** Package directory when the artifact contains supporting members. */
+  packageRoot?: string;
+  /** Canonical package entrypoint, normally SKILL.md. */
+  entrypoint?: string;
   /** File size in bytes. */
   size: number;
   /** Arbitrary metadata (serialized as JSON in storage). */

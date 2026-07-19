@@ -88,7 +88,9 @@ function envPatch(env: Record<string, string | undefined>): DeepPartial<Quarterm
   if (env.QM_ROOTS) patch.roots = list(env.QM_ROOTS);
   if (env.QM_DB_PATH) patch.dbPath = env.QM_DB_PATH;
   if (env.QM_PROFILE_DIR) patch.profileDir = env.QM_PROFILE_DIR;
+  if (env.QM_SOURCE_REGISTRY) patch.sourceRegistry = env.QM_SOURCE_REGISTRY;
   if (env.QM_HARNESSES) patch.harnesses = list(env.QM_HARNESSES);
+  if (env.QM_REQUIRE_LOADOUT) patch.deployment = { requireLoadout: env.QM_REQUIRE_LOADOUT === 'true' };
 
   const safety: DeepPartial<QuartermasterConfig['safety']> = {};
   if (env.QM_SAFETY_THRESHOLD) safety.threshold = Number(env.QM_SAFETY_THRESHOLD);

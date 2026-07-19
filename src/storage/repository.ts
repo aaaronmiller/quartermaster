@@ -12,7 +12,7 @@ import type {
   PipelineDefinition,
   SafetyFinding,
 } from '@core/types';
-import { MigrationError, runMigrations } from './migrations';
+import { runMigrations } from './migrations';
 
 export interface ListArtifactOptions {
   type?: ArtifactType;
@@ -74,13 +74,16 @@ export class Repository {
   /** Insert or update an artifact. */
   upsertArtifact(a: Artifact): void {
     const stmt = this.db.prepare(`
-      INSERT INTO artifacts (id, type, name, path, organizationalPath, hash, size, metadata, source, capabilities,
-                             importedAt, updatedAt, provenance, pinnedRevision, localModifications, riskFlags)
-      VALUES ($id, $type, $name, $path, $organizationalPath, $hash, $size, $metadata, $source, $capabilities,
-              $importedAt, $updatedAt, $provenance, $pinnedRevision, $localModifications, $riskFlags)
-      ON CONFLICT(path) DO UPDATE SET
-        id = $id, type = $type, name = $name, organizationalPath = $organizationalPath,
+      INSERT INTO artifacts (id, type, name, path, organizationalPath, hash, packageRoot, entrypoint,
+                             size, metadata, source, capabilities, importedAt, updatedAt, provenance,
+                             pinnedRevision, localModifications, riskFlags)
+      VALUES ($id, $type, $name, $path, $organizationalPath, $hash, $packageRoot, $entrypoint,
+              $size, $metadata, $source, $capabilities, $importedAt, $updatedAt, $provenance,
+              $pinnedRevision, $localModifications, $riskFlags)
+      ON CONFLICT(id) DO UPDATE SET
+        type = $type, name = $name, path = $path, organizationalPath = $organizationalPath,
         hash = $hash, size = $size,
+        packageRoot = $packageRoot, entrypoint = $entrypoint,
         metadata = $metadata, source = $source, capabilities = $capabilities,
         updatedAt = $updatedAt, provenance = $provenance,
         pinnedRevision = $pinnedRevision, localModifications = $localModifications,
@@ -94,6 +97,8 @@ export class Repository {
       a.path,
       a.organizationalPath ?? '',
       a.hash,
+      a.packageRoot ?? null,
+      a.entrypoint ?? null,
       a.size,
       JSON.stringify(a.metadata),
       JSON.stringify(a.source),
@@ -178,6 +183,29 @@ export class Repository {
       hash: string;
     } | null;
     return row?.hash ?? null;
+  }
+
+  /** Find every catalog occurrence with the same bytes/package hash. */
+  findArtifactsByHash(hash: string): Artifact[] {
+    const rows = this.db.prepare('SELECT * FROM artifacts WHERE hash = ? ORDER BY path').all(hash) as Record<
+      string,
+      unknown
+    >[];
+    return rows.map(rowToArtifact);
+  }
+
+  /** Resolve a previous identity retained during a migration or source move. */
+  getArtifactByAlias(aliasId: string): Artifact | null {
+    const row = this.db
+      .prepare('SELECT artifactId FROM artifact_aliases WHERE aliasId = ?')
+      .get(aliasId) as { artifactId: string } | null;
+    return row ? this.getArtifact(row.artifactId) : null;
+  }
+
+  saveArtifactAlias(aliasId: string, artifactId: string, reason: string, at: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO artifact_aliases (aliasId, artifactId, reason, createdAt) VALUES (?, ?, ?, ?)')
+      .run(aliasId, artifactId, reason, at);
   }
 
   // ── Deployment Logs ───────────────────────────────────────
@@ -523,6 +551,8 @@ function rowToArtifact(row: Record<string, unknown>): Artifact {
     path: row.path as string,
     organizationalPath: (row.organizationalPath as string) ?? '',
     hash: row.hash as string,
+    packageRoot: (row.packageRoot as string) || undefined,
+    entrypoint: (row.entrypoint as string) || undefined,
     size: row.size as number,
     metadata: safeParseJSON(row.metadata as string | null | undefined, {}),
     source: safeParseJSON(row.source as string),

@@ -70,6 +70,63 @@ test('compilePlan lists placements, transforms, and skips without writing files'
   expect(existsSync(targetProbe)).toBe(false);
 });
 
+test('skill packages deploy every member under one globally scoped skill directory', async () => {
+  const targetDir = join(mkdtempSync(join(tmpdir(), 'qm-package-plan-')), 'skills');
+  const sourceRoot = join(mkdtempSync(join(tmpdir(), 'qm-package-source-')), 'imagegen');
+  mkdirSync(join(sourceRoot, 'scripts'), { recursive: true });
+  writeFileSync(join(sourceRoot, 'SKILL.md'), '# Imagegen\n');
+  writeFileSync(join(sourceRoot, 'scripts', 'generate.py'), 'print("image")\n');
+  const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
+  const profile = {
+    ...codex,
+    artifactTypes: codex.artifactTypes.map((entry) =>
+      entry.type === 'skill'
+        ? { ...entry, locations: { global: targetDir, project: join(targetDir, 'project') } }
+        : entry,
+    ),
+  };
+  const imagegen = artifact({
+    id: 'imagegen',
+    name: 'Imagegen',
+    path: join(sourceRoot, 'SKILL.md'),
+    packageRoot: sourceRoot,
+    entrypoint: join(sourceRoot, 'SKILL.md'),
+    metadata: { packageMembers: ['SKILL.md', 'scripts/generate.py'] },
+  });
+  const matrix = computeCompatibilityMatrix([imagegen], [profile]);
+  const plan = compilePlan([imagegen], matrix.map((row) => row[0]!), profile);
+
+  expect(plan.operations.map((operation) => operation.targetPath)).toEqual([
+    join(targetDir, 'imagegen', 'SKILL.md'),
+    join(targetDir, 'imagegen', 'scripts', 'generate.py'),
+  ]);
+  await executePlacement(plan);
+  expect(readFileSync(join(targetDir, 'imagegen', 'SKILL.md'), 'utf8')).toBe('# Imagegen\n');
+  expect(readFileSync(join(targetDir, 'imagegen', 'scripts', 'generate.py'), 'utf8')).toBe('print("image")\n');
+});
+
+test('deployment planning fails closed when packages resolve to the same target', () => {
+  const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
+  const first = artifact({
+    id: 'first',
+    path: '/library/one/shared/SKILL.md',
+    packageRoot: '/library/one/shared',
+    metadata: { packageMembers: ['SKILL.md'] },
+  });
+  const second = artifact({
+    id: 'second',
+    path: '/library/two/shared/SKILL.md',
+    packageRoot: '/library/two/shared',
+    metadata: { packageMembers: ['SKILL.md'] },
+  });
+  const artifacts = [first, second];
+  const matrix = computeCompatibilityMatrix(artifacts, [codex]);
+
+  expect(() => compilePlan(artifacts, matrix.map((row) => row[0]!), codex)).toThrow(
+    'deployment target collision',
+  );
+});
+
 test('deployment plan surfaces provenance and risk flags before deploy', () => {
   const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
   const risky = artifact({
@@ -106,7 +163,11 @@ test('qm deploy <harness> prints a dry-run plan with operations and skips', () =
 
   const out = execFileSync('bun', ['src/cli/index.ts', 'deploy', 'codex', '--json'], {
     cwd: process.cwd(),
-    env: { ...process.env, QM_DB_PATH: join(dir, 'catalog.sqlite') },
+    env: {
+      ...process.env,
+      QM_DB_PATH: join(dir, 'catalog.sqlite'),
+      QM_REQUIRE_LOADOUT: 'false',
+    },
     encoding: 'utf8',
   });
   const parsed = JSON.parse(out) as {
@@ -234,7 +295,12 @@ test('qm deploy is dry-run by default and applies only with --yes', () => {
   );
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: join(dir, 'catalog.sqlite'), QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: join(dir, 'catalog.sqlite'),
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   const run = (args: string[]) => {
     const out = execFileSync('bun', ['src/cli/index.ts', 'deploy', 'custom-deploy', ...args, '--json'], {
       cwd: process.cwd(),
@@ -277,6 +343,7 @@ test('qm deploy supports configured groups and --all targets', () => {
         profileDir,
         harnesses: ['p1', 'p2'],
         harnessGroups: { pair: ['p1', 'p2'] },
+        deployment: { requireLoadout: false },
       },
       null,
       2,
@@ -342,7 +409,12 @@ test('qm deploy --scope limits placements, is idempotent, and never writes libra
   );
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: join(dir, 'catalog.sqlite'), QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: join(dir, 'catalog.sqlite'),
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   const run = () => {
     const out = execFileSync(
       'bun',
@@ -423,7 +495,12 @@ test('qm deploy --yes places a per-harness guidance file with a managed section 
   );
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: join(dir, 'catalog.sqlite'), QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: join(dir, 'catalog.sqlite'),
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   execFileSync('bun', ['src/cli/index.ts', 'deploy', 'custom-deploy', '--yes', '--json'], { cwd: process.cwd(), env, encoding: 'utf8' });
 
   const guidancePath = join(targetDir, 'AGENTS.md');

@@ -78,7 +78,7 @@ export async function scanRisks(artifact: Artifact): Promise<RiskFlag[]> {
   return flags;
 }
 
-function scanBase64Code(artifact: Artifact, content: string, metadataStr: string): RiskFlag[] {
+function scanBase64Code(artifact: Artifact, content: string, _metadataStr: string): RiskFlag[] {
   const flags: RiskFlag[] = [];
   const base64Regex = /[A-Za-z0-9+/]{100,}={0,2}/g;
   const matches = content.match(base64Regex) ?? [];
@@ -112,7 +112,7 @@ function scanBase64Code(artifact: Artifact, content: string, metadataStr: string
 
 function scanSecretAccess(artifact: Artifact, content: string, metadataStr: string): RiskFlag[] {
   const flags: RiskFlag[] = [];
-  const combined = content + ' ' + metadataStr;
+  const combined = `${content} ${metadataStr}`;
 
   for (const pattern of SECRET_PATTERNS) {
     if (pattern.test(combined)) {
@@ -173,7 +173,7 @@ function scanKnownVulnerableDeps(
   metadataStr: string,
 ): RiskFlag[] {
   const flags: RiskFlag[] = [];
-  const combined = metadataStr + ' ' + artifact.provenance;
+  const combined = `${metadataStr} ${artifact.provenance}`;
 
   for (const dep of KNOWN_VULNERABLE_DEPS) {
     if (combined.includes(dep)) {

@@ -42,6 +42,11 @@ export interface McpConfig {
   enabled: boolean;
 }
 
+export interface DeploymentPolicyConfig {
+  /** Refuse catalog-wide deployment when a harness has no active loadout. */
+  requireLoadout: boolean;
+}
+
 /** The fully-resolved configuration object. */
 export interface QuartermasterConfig {
   /** Library root locations to scan (FR-001). */
@@ -50,10 +55,13 @@ export interface QuartermasterConfig {
   dbPath: string;
   /** Directory holding custom harness profiles (FR-022). */
   profileDir: string;
+  /** Provenance-aware source registry used to build the linked library. */
+  sourceRegistry: string;
   /** Active target harness names (FR-047). */
   harnesses: string[];
   /** Named groups of harnesses for group deploys (FR-047). */
   harnessGroups: Record<string, string[]>;
+  deployment: DeploymentPolicyConfig;
   safety: SafetyConfig;
   composition: CompositionConfig;
   eval: EvalConfig;
@@ -72,8 +80,10 @@ export function defaultConfig(): QuartermasterConfig {
     roots: [`${h}/.quartermaster/library`],
     dbPath: `${h}/.quartermaster/catalog.db`,
     profileDir: `${h}/.quartermaster/profiles`,
+    sourceRegistry: `${h}/.quartermaster/sources.yaml`,
     harnesses: [],
     harnessGroups: {},
+    deployment: { requireLoadout: false },
     safety: { threshold: 0.6, allowlist: [] },
     composition: { enabled: false },
     eval: {
@@ -109,8 +119,14 @@ export function validateConfig(c: QuartermasterConfig): ConfigProblem[] {
   if (typeof c.profileDir !== 'string' || c.profileDir.length === 0) {
     problems.push({ path: 'profileDir', message: 'profileDir must be a non-empty path' });
   }
+  if (typeof c.sourceRegistry !== 'string' || c.sourceRegistry.length === 0) {
+    problems.push({ path: 'sourceRegistry', message: 'sourceRegistry must be a non-empty path' });
+  }
   if (!Array.isArray(c.harnesses)) {
     problems.push({ path: 'harnesses', message: 'harnesses must be a list of harness names' });
+  }
+  if (typeof c.deployment?.requireLoadout !== 'boolean') {
+    problems.push({ path: 'deployment.requireLoadout', message: 'deployment.requireLoadout must be true or false' });
   }
   if (
     typeof c.safety?.threshold !== 'number' ||

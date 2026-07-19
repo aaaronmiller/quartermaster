@@ -170,12 +170,15 @@ async function refreshArtifactFromSource(artifact: Artifact, upstreamRef: string
       throw new Error(`could not find refreshed artifact matching ${artifact.name}`);
     }
 
-    await fs.mkdir(dirname(artifact.path), { recursive: true });
-    await fs.copyFile(replacement.path, artifact.path);
+    if (replacement.packageRoot && artifact.packageRoot) {
+      await fs.cp(replacement.packageRoot, artifact.packageRoot, { recursive: true, force: true });
+    } else {
+      await fs.mkdir(dirname(artifact.path), { recursive: true });
+      await fs.copyFile(replacement.path, artifact.path);
+    }
 
     return {
       ...artifact,
-      id: replacement.id,
       hash: replacement.hash,
       size: replacement.size,
       metadata: {
@@ -187,7 +190,6 @@ async function refreshArtifactFromSource(artifact: Artifact, upstreamRef: string
         ...artifact.source,
         importedRevision: upstreamRef,
       } as ArtifactSource,
-      provenance: replacement.provenance,
       localModifications: false,
       updatedAt: new Date().toISOString(),
     };

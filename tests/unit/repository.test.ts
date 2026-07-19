@@ -1,6 +1,11 @@
 // T010 — Repository round-trip (insert → query → update → delete) for each entity.
 import { beforeEach, describe, expect, test } from 'bun:test';
+import { Database } from 'bun:sqlite';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Repository } from '../../src/storage/repository';
+import { MIGRATIONS } from '../../src/storage/migrations';
 import type {
   Artifact,
   DeploymentRecord,
@@ -45,6 +50,12 @@ describe('Repository round-trip', () => {
 
     expect(repo.deleteArtifact('art-1')).toBe(true);
     expect(repo.getArtifact('art-1')).toBeNull();
+  });
+
+  test('artifact aliases resolve to the stable identity', () => {
+    repo.upsertArtifact(sampleArtifact());
+    repo.saveArtifactAlias('old-content-id', 'art-1', 'stable-identity-migration', '2026-07-19T00:00:00Z');
+    expect(repo.getArtifactByAlias('old-content-id')?.id).toBe('art-1');
   });
 
   test('loadout: insert → get → update → list → delete', () => {
@@ -121,4 +132,37 @@ describe('Repository round-trip', () => {
   test('integrity check passes on a fresh database', () => {
     expect(repo.integrityCheck()).toEqual(['ok']);
   });
+});
+
+test('migration v5 preserves existing artifact identity and adds relationship storage', () => {
+  const path = join(mkdtempSync(join(tmpdir(), 'qm-migration-')), 'catalog.sqlite');
+  const db = new Database(path);
+  for (const migration of MIGRATIONS.filter((item) => item.version <= 4)) db.run(migration.up);
+  db.run('PRAGMA user_version = 4');
+  db.prepare(
+    `INSERT INTO artifacts
+      (id, type, name, path, organizationalPath, hash, size, metadata, source, capabilities, importedAt, updatedAt, provenance)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    'legacy-content-id',
+    'skill',
+    'legacy',
+    '/tmp/legacy/SKILL.md',
+    'legacy',
+    'old-hash',
+    1,
+    '{}',
+    JSON.stringify({ kind: 'local', path: '/tmp/legacy/SKILL.md' }),
+    '[]',
+    '2026-06-29T00:00:00Z',
+    '2026-06-29T00:00:00Z',
+    'local',
+  );
+  db.close();
+
+  const migrated = new Repository({ dbPath: path });
+  expect(migrated.getArtifact('legacy-content-id')?.id).toBe('legacy-content-id');
+  expect(migrated.queryRow<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(5);
+  expect(migrated.queryRow<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name='artifact_relationships'")?.name).toBe('artifact_relationships');
+  migrated.close();
 });

@@ -143,7 +143,7 @@ export function renderGuidance(input: GuidanceInput): GuidanceDocument {
 
   // Step 5 – build sections array for GuidanceDocument
   const managedSections = detectManagedSections(fullContent);
-  const managedSet = new Set(managedSections.map((s) => `${s.start}:${s.end}`));
+  const _managedSet = new Set(managedSections.map((s) => `${s.start}:${s.end}`));
 
   const sections: GuidanceDocument['sections'] = [];
 

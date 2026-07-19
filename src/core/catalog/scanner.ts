@@ -7,12 +7,13 @@
 // ─────────────────────────────────────────────────────────────
 
 import { createHash } from 'node:crypto';
-import { existsSync, promises as fs, statSync } from 'node:fs';
-import { basename, dirname, relative } from 'node:path';
+import { existsSync, promises as fs, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, relative, resolve } from 'node:path';
 import type { Artifact, ArtifactType, ScanResult } from '@core/types';
 import type { Repository } from '@storage/repository';
 import { load as parseYaml } from 'js-yaml';
 import { inferCapabilities } from './capabilities';
+import { classifyArtifactMetadata } from '@core/classification/classify';
 
 export interface ScannerOptions {
   /** Maximum directory depth. Default: 100 */
@@ -75,20 +76,36 @@ export async function scanRoots(
   // library this turns 1000 auto-committed writes into a single commit
   // (NFR-001: full scan < 10s).
   const pending: Artifact[] = [];
+  const claimedIds = new Set<string>();
   for (const { file: filePath, root } of allFiles) {
     try {
       const detected = await detectArtifactType(filePath);
       if (!detected) continue;
 
-      const hash = await computeFileHash(filePath);
-      const size = statSync(filePath).size;
-      const existingHash = repo.getHashByPath(filePath);
-      const isNew = existingHash === null;
+      const packageInfo = await computeArtifactDigest(filePath, detected.type);
+      const hash = packageInfo.hash;
+      const existing = repo.getArtifactByPath(filePath);
+      const moved = existing
+        ? null
+        : (repo
+            .findArtifactsByHash(hash)
+            .find((candidate) => !existsSync(candidate.path) && !claimedIds.has(candidate.id)) ?? null);
+      const identity = existing ?? moved;
+      const isNew = identity === null;
 
-      const artifact = buildArtifact(detected, hash, size, filePath, orgPath(root, filePath));
+      const artifact = buildArtifact(
+        detected,
+        hash,
+        packageInfo.size,
+        filePath,
+        orgPath(root, filePath),
+        identity,
+        packageInfo.members,
+      );
+      claimedIds.add(artifact.id);
 
       if (isNew) result.added.push(artifact);
-      else if (hash !== existingHash) result.changed.push(artifact);
+      else if (hash !== identity.hash || moved !== null) result.changed.push(artifact);
       // unchanged: still upserted (idempotent), but not reported in the diff
 
       pending.push(artifact);
@@ -98,6 +115,18 @@ export async function scanRoots(
   }
 
   repo.transaction(() => {
+    const pendingPaths = new Set(pending.map((artifact) => artifact.path));
+    const pendingIds = new Set(pending.map((artifact) => artifact.id));
+    for (const artifact of repo.listArtifacts()) {
+      if (
+        isWithinRoots(artifact.path, roots) &&
+        !pendingPaths.has(artifact.path) &&
+        !pendingIds.has(artifact.id)
+      ) {
+        repo.deleteArtifact(artifact.id);
+        result.removed.push(artifact);
+      }
+    }
     for (const artifact of pending) repo.upsertArtifact(artifact);
   });
 
@@ -119,16 +148,19 @@ export async function rescanIncremental(repo: Repository): Promise<ScanResult> {
         result.removed.push(art);
         continue;
       }
-      const newHash = await computeFileHash(art.path);
+      const digest = await computeArtifactDigest(art.path, art.type);
+      const newHash = digest.hash;
       if (newHash !== art.hash) {
         const detected = await detectArtifactType(art.path);
         if (detected) {
           const updated = buildArtifact(
             detected,
             newHash,
-            statSync(art.path).size,
+            digest.size,
             art.path,
             art.organizationalPath,
+            art,
+            digest.members,
           );
           repo.upsertArtifact(updated);
           result.changed.push(updated);
@@ -158,6 +190,21 @@ async function collectFiles(
     entries = await fs.readdir(dir);
   } catch {
     return; // permission denied — skip
+  }
+
+  const skillEntrypoint = entries.find((entry) => entry.toLowerCase() === 'skill.md');
+  if (skillEntrypoint) {
+    out.push(`${dir}/${skillEntrypoint}`);
+    for (const entry of entries) {
+      if (entry === skillEntrypoint || skip.includes(entry) || entry.startsWith('.')) continue;
+      const child = `${dir}/${entry}`;
+      try {
+        if ((await fs.stat(child)).isDirectory()) await collectNestedSkillEntrypoints(child, out, skip);
+      } catch {
+        // Ignore unreadable package members.
+      }
+    }
+    return;
   }
 
   for (const entry of entries) {
@@ -192,6 +239,34 @@ async function collectFiles(
   }
 }
 
+function isWithinRoots(path: string, roots: string[]): boolean {
+  const normalized = resolve(path);
+  return roots.some((root) => {
+    const candidate = resolve(root);
+    return normalized === candidate || normalized.startsWith(`${candidate}/`);
+  });
+}
+
+async function collectNestedSkillEntrypoints(dir: string, out: string[], skip: string[]): Promise<void> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(dir);
+  } catch {
+    return;
+  }
+  const entrypoint = entries.find((entry) => entry.toLowerCase() === 'skill.md');
+  if (entrypoint) out.push(`${dir}/${entrypoint}`);
+  for (const entry of entries) {
+    if (entry === entrypoint || skip.includes(entry) || entry.startsWith('.')) continue;
+    const child = `${dir}/${entry}`;
+    try {
+      if ((await fs.stat(child)).isDirectory()) await collectNestedSkillEntrypoints(child, out, skip);
+    } catch {
+      // Ignore unreadable nested directories.
+    }
+  }
+}
+
 // ─── Artifact Type Detection (convention-driven) ────────────
 
 async function detectArtifactType(filePath: string): Promise<DetectedArtifact | null> {
@@ -214,7 +289,7 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 3. Skill: SKILL.md, *.skill.md, or any *.md with YAML frontmatter
+  // 3. Skill package entrypoint: SKILL.md or a standalone *.skill.md file.
   if (lower === 'skill.md' || lower.endsWith('.skill.md')) {
     const content = await readText(filePath);
     const meta = content.startsWith('---') ? parseFrontmatter(content) : {};
@@ -223,17 +298,6 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
       { type: 'skill', dialect: 'agent-md' },
     ]);
   }
-  if (lower.endsWith('.md')) {
-    const content = await readText(filePath);
-    if (content.startsWith('---')) {
-      const meta = parseFrontmatter(content);
-      if (detectsMcpReference(content)) meta.referencesMcp = true;
-      return mk('skill', str(meta.name) ?? stripExt(fileName), filePath, meta, [
-        { type: 'skill', dialect: 'agent-md' },
-      ]);
-    }
-  }
-
   // 4. Agent: *.agent.{yaml,yml}, manifest.{yaml,yml}
   if (/\.agent\.ya?ml$/.test(lower) || lower === 'manifest.yaml' || lower === 'manifest.yml') {
     const meta = await safeYaml(filePath);
@@ -372,9 +436,42 @@ function parseYamlSafe(raw: string): Record<string, unknown> {
   }
 }
 
-async function computeFileHash(filePath: string): Promise<string> {
-  const content = await fs.readFile(filePath);
-  return createHash('sha256').update(content).digest('hex');
+async function computeArtifactDigest(
+  filePath: string,
+  type: ArtifactType,
+): Promise<{ hash: string; size: number; members: string[] }> {
+  if (type !== 'skill' || basename(filePath).toLowerCase() !== 'skill.md') {
+    const content = await fs.readFile(filePath);
+    return { hash: createHash('sha256').update(content).digest('hex'), size: content.length, members: [] };
+  }
+
+  const root = dirname(filePath);
+  const members: string[] = [];
+  await collectPackageMembers(root, root, members);
+  members.sort();
+  const digest = createHash('sha256');
+  let size = 0;
+  for (const member of members) {
+    const content = await fs.readFile(`${root}/${member}`);
+    digest.update(member).update('\0').update(content).update('\0');
+    size += content.length;
+  }
+  return { hash: digest.digest('hex'), size, members };
+}
+
+async function collectPackageMembers(root: string, dir: string, out: string[]): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  if (dir !== root && entries.some((entry) => entry.name.toLowerCase() === 'skill.md')) return;
+  for (const entry of entries) {
+    if (DEFAULT_SKIP.includes(entry.name) || entry.name === '.git' || entry.name.startsWith('.')) continue;
+    const full = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) await collectPackageMembers(root, full, out);
+    else if (entry.isFile()) out.push(relative(root, full));
+  }
+}
+
+function stableArtifactId(filePath: string): string {
+  return `art_${createHash('sha256').update(resolve(filePath)).digest('hex').slice(0, 24)}`;
 }
 
 function buildArtifact(
@@ -383,22 +480,36 @@ function buildArtifact(
   size: number,
   filePath: string,
   organizationalPath: string,
+  existing: Artifact | null,
+  packageMembers: string[],
 ): Artifact {
   const now = new Date().toISOString();
+  const metadata: Record<string, unknown> = {
+    ...detected.metadata,
+    ...(packageMembers.length > 0 ? { packageMembers, packageMemberCount: packageMembers.length } : {}),
+  };
+  const canonicalPath = realpathSync(filePath);
+  const pathParts = organizationalPath.split('/');
+  if (['first-party', 'third-party', 'harness-defaults'].includes(pathParts[0] ?? '') && pathParts[1]) {
+    metadata.sourceId = pathParts[1];
+  }
+  metadata.canonicalPath = canonicalPath;
+  metadata.classification = classifyArtifactMetadata(metadata, organizationalPath, detected.name);
   const artifact: Artifact = {
-    id: hash.slice(0, 16),
+    id: existing?.id ?? stableArtifactId(filePath),
     type: detected.type,
     name: detected.name,
     path: filePath,
     organizationalPath,
     hash,
     size,
-    metadata: detected.metadata,
-    source: { kind: 'local', path: filePath },
+    metadata,
+    source: { kind: 'local', path: canonicalPath },
     capabilities: detected.capabilities,
-    importedAt: now,
+    importedAt: existing?.importedAt ?? now,
     updatedAt: now,
-    provenance: `local:${filePath}`,
+    provenance: `local:${canonicalPath}`,
+    ...(packageMembers.length > 0 ? { packageRoot: dirname(filePath), entrypoint: filePath } : {}),
   };
   // Single source of truth for capabilities (FR-004, design/capability-inference.md):
   // derive from type + parsed metadata rather than trusting detection-time guesses.

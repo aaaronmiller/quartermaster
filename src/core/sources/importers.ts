@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { scanRoots } from '@core/catalog/scanner';
-import type { Artifact, ArtifactSource, ScanResult } from '@core/types';
+import type { ArtifactSource, ScanResult } from '@core/types';
 import type { Repository } from '@storage/repository';
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
@@ -173,7 +173,7 @@ export class ImportManager {
   private formatProvenance(source: ArtifactSource): string {
     switch (source.kind) {
       case 'github':
-        return `github:${source.owner}/${source.repo}@${source.ref}${source.subdir ? '/' + source.subdir : ''}`;
+        return `github:${source.owner}/${source.repo}@${source.ref}${source.subdir ? `/${source.subdir}` : ''}`;
       case 'git':
         return `git:${source.url}@${source.ref}`;
       case 'git_subdir':

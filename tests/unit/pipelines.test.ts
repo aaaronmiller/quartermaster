@@ -103,6 +103,29 @@ test('pipeline compose respects exclusivity', () => {
 
 import { defaultConfig } from '../../src/core/config/schema';
 import { proposePipelines } from '../../src/core/pipelines/propose';
+import { PIPELINE_TEMPLATES } from '../../src/core/pipelines/templates';
+import { suggestRelatedArtifacts } from '../../src/core/relationships/suggest';
+
+test('starter pipeline templates cover the standard workflows', () => {
+  expect(PIPELINE_TEMPLATES.map((template) => template.id)).toEqual([
+    'code-audit',
+    'full-development',
+    'advertising',
+    'research',
+    'release',
+  ]);
+});
+
+test('relationship suggestions include pipeline peers and declared relationships', () => {
+  const repo = new Repository({ dbPath: ':memory:' });
+  repo.upsertArtifact({ ...artifact('audit'), metadata: { functions: ['audit'], 'works-with': ['tests'] } });
+  repo.upsertArtifact({ ...artifact('tests'), metadata: { functions: ['audit'] } });
+  repo.upsertPipeline({ name: 'code-audit', artifacts: ['audit', 'tests'], directives: {} });
+  const related = suggestRelatedArtifacts(repo, 'audit');
+  expect(related.some((item) => item.artifactId === 'tests' && item.relation === 'pipeline-peer')).toBe(true);
+  expect(related.some((item) => item.artifactId === 'tests' && item.relation === 'works-with')).toBe(true);
+  repo.close();
+});
 
 function composable(id: string, composition: Record<string, unknown>): Artifact {
   return { ...artifact(id), metadata: { composition } };

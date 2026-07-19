@@ -628,3 +628,22 @@ All 62 FRs and all 23 NFRs are covered. **302 verifiable tasks** (290 base + 12 
   - T178a eval/model integration architecture
 
 Execute spikes before their clusters: their decisions may reclassify the "audit/confirm" tasks that follow into real implementation work.
+
+---
+
+## Phase 18 - Prelaunch Correction and Source-Library Cut-over
+
+Depends on: Phase 17 and the 2026-07-19 governing intent audit. This phase
+corrects defects found against real skill sources. It prepares Quartermaster for
+launch but does not deploy to a harness or start the TUI/web server.
+
+- [x] T291 [FR-001 | FR-003 | FR-005] Give artifacts stable identity across content edits and unambiguous source moves; migrate aliases safely - File: src/core/catalog/scanner.ts, src/storage/migrations.ts, src/storage/repository.ts - Verify: identity/duplicate/move migration tests pass.
+- [x] T292 [FR-001 | FR-003 | FR-040] Treat a `SKILL.md` directory as one package, retain member hashes/metadata, and deploy every package member under one collision-checked target directory - File: src/core/catalog/scanner.ts, src/core/deploy/plan.ts - Verify: scripts and references are package members, member edits change the package hash, and the Imagegen-style package deployment test copies every member.
+- [x] T293 [FR-004] Remove quality grade from runtime capability inference - File: src/core/catalog/capabilities.ts - Verify: grade A skill remains compatible with a skill-capable profile.
+- [x] T294 [FR-021 | FR-022] Add declarative profiles for the twelve active harness targets - File: src/core/profiles/profile-registry.ts - Verify: profile schema and coverage tests pass.
+- [x] T295 [FR-010 | FR-011 | FR-014] Add a source registry and dry-run/apply source-link library preparation - File: src/core/library/ - Verify: clean fixture creates provenance-grouped links only after apply and records rollback state.
+- [x] T296 [FR-006 | FR-090 | FR-110] Add multi-axis classification, starter pipeline templates, and artifact relationship queries - File: src/core/classification/, src/core/pipelines/ - Verify: lifecycle/function/composition filters and relationship tests pass.
+- [x] T297 [NFR-012 | NFR-020] Repair installer repository, binary name, update safety, and strict test gate - File: install.sh, README.md - Verify: shell syntax and installer contract tests pass.
+- [x] T298 [NFR-050] Clear lint findings without weakening the gate - File: src/, tests/ - Verify: `bun run lint` exits 0 with no warnings.
+- [x] T299 Configure the real prelaunch source registry without importing current harness deployments - File: ~/.quartermaster/sources.yaml, ~/.quartermaster/library/ - Verify: seven-source registry validation, dry-run, apply, rollback read-back, and 437-artifact catalog scan pass; no harness target changes.
+- [x] T300 Final prelaunch acceptance - File: . - Verify: 164 tests pass, typecheck and warning-free lint pass, build and installer checks pass, installed `qm` matches the build, Codex dry-run has 358 unique targets with Imagegen package members and zero exclusions, and no Quartermaster UI/server is running.

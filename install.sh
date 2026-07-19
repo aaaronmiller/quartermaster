@@ -8,7 +8,7 @@ set -euo pipefail
 # and WSL2 on both architectures.
 # ──────────────────────────────────────────────────────────────
 
-REPO_URL="${QUARTERMASTER_REPO_URL:-https://github.com/aaaronmiller/001-quartermaster.git}"
+REPO_URL="${QUARTERMASTER_REPO_URL:-https://github.com/aaaronmiller/quartermaster.git}"
 INSTALL_DIR="${QUARTERMASTER_INSTALL_DIR:-$HOME/.local/share/quartermaster}"
 BIN_DIR="${QUARTERMASTER_BIN_DIR:-$HOME/.local/bin}"
 BUN_VERSION="${BUN_VERSION:-1.3.14}"
@@ -90,9 +90,14 @@ require_bin bun
 
 # ── Step 3: Clone / update repo ──────────────────────────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
-  log "Repo already cloned at $INSTALL_DIR — pulling latest"
+  log "Repo already cloned at $INSTALL_DIR — fast-forwarding safely"
+  [[ -z "$(git -C "$INSTALL_DIR" status --porcelain)" ]] \
+    || err "Existing checkout has local changes; preserve or commit them before upgrading: $INSTALL_DIR"
+  branch="$(git -C "$INSTALL_DIR" branch --show-current)"
+  [[ -n "$branch" ]] || err "Existing checkout is detached; select a branch before upgrading"
   git -C "$INSTALL_DIR" fetch --quiet origin
-  git -C "$INSTALL_DIR" reset --quiet --hard origin/$(git -C "$INSTALL_DIR" rev-parse --abbrev-ref HEAD)
+  git -C "$INSTALL_DIR" merge --quiet --ff-only "origin/$branch" \
+    || err "Upgrade is not a fast-forward; no files were overwritten"
 else
   log "Cloning Quartermaster → $INSTALL_DIR"
   mkdir -p "$(dirname "$INSTALL_DIR")"
@@ -114,10 +119,10 @@ ok "Build complete"
 # ── Step 6: Link binary into PATH ─────────────────────────────
 mkdir -p "$BIN_DIR"
 BIN_SRC="$INSTALL_DIR/dist/quartermaster"
-BIN_DEST="$BIN_DIR/quartermaster"
+BIN_DEST="$BIN_DIR/qm"
 if [[ "$(readlink -f "$BIN_DEST" 2>/dev/null || echo "")" != "$BIN_SRC" ]]; then
   ln -sf "$BIN_SRC" "$BIN_DEST"
-  ok "Linked quartermaster → $BIN_DEST"
+  ok "Linked qm → $BIN_DEST"
 else
   log "Symlink already exists"
 fi
@@ -148,9 +153,10 @@ fi
 log "Running test suite (this confirms the install is healthy)"
 cd "$INSTALL_DIR"
 export PATH="$(dirname "$bun_bin"):$PATH"
-bun test --silent 2>/dev/null || true
-bun run typecheck >/dev/null 2>&1 && ok "Typecheck passed (0 errors)" \
-                                   || warn "Typecheck has errors — see bun run typecheck"
+bun test
+ok "Tests passed"
+bun run typecheck
+ok "Typecheck passed"
 
 # ── Done ─────────────────────────────────────────────────────
 cat <<'EOF'
@@ -158,7 +164,7 @@ cat <<'EOF'
 ┌──────────────────────────────────────────────────────────────┐
 │  Quartermaster is installed ✓                                │
 │                                                              │
-│  Binary:  ~/.local/bin/quartermaster                        │
+│  Binary:  ~/.local/bin/qm                                   │
 │  Library: ~/.quartermaster/library                          │
 │  Config:  ~/.quartermaster                                    │
 │                                                              │

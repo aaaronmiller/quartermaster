@@ -149,6 +149,41 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS safety_overrides;
     `,
   },
+  {
+    version: 5,
+    name: 'stable-artifact-identity-and-relations',
+    up: `
+      ALTER TABLE artifacts ADD COLUMN packageRoot TEXT;
+      ALTER TABLE artifacts ADD COLUMN entrypoint TEXT;
+
+      CREATE TABLE IF NOT EXISTS artifact_aliases (
+        aliasId    TEXT PRIMARY KEY,
+        artifactId TEXT NOT NULL,
+        reason     TEXT NOT NULL,
+        createdAt  TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_artifact_alias_target ON artifact_aliases(artifactId);
+
+      CREATE TABLE IF NOT EXISTS artifact_relationships (
+        sourceId   TEXT NOT NULL,
+        targetId   TEXT NOT NULL,
+        relation   TEXT NOT NULL,
+        provenance TEXT NOT NULL DEFAULT 'catalog',
+        weight     REAL NOT NULL DEFAULT 1,
+        updatedAt  TEXT NOT NULL,
+        PRIMARY KEY (sourceId, targetId, relation, provenance)
+      );
+      CREATE INDEX IF NOT EXISTS idx_artifact_relationship_source ON artifact_relationships(sourceId);
+      CREATE INDEX IF NOT EXISTS idx_artifact_relationship_target ON artifact_relationships(targetId);
+    `,
+    down: `
+      DROP TABLE IF EXISTS artifact_relationships;
+      DROP TABLE IF EXISTS artifact_aliases;
+      DROP INDEX IF EXISTS idx_artifact_relationship_source;
+      DROP INDEX IF EXISTS idx_artifact_relationship_target;
+      DROP INDEX IF EXISTS idx_artifact_alias_target;
+    `,
+  },
 ];
 
 const CURRENT_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

@@ -1,6 +1,6 @@
 {
   "name": "quartermaster",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Multi-harness agent artifact manager — deploy, audit, sync, and organize skills, plugins, hooks, and MCP configs across Claude Code, Codex, Antigravity, OpenCode, and more.",
   "type": "module",
   "module": "src/cli/index.ts",

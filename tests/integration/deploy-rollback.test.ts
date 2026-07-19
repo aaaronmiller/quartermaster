@@ -66,7 +66,12 @@ test('rollback restores prior target bytes instead of copying current source', (
   repo.upsertArtifact(artifact(source));
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: dbPath, QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: dbPath,
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   const deployOut = execFileSync('bun', ['src/cli/index.ts', 'deploy', 'rollback-profile', '--yes', '--json'], {
     cwd: process.cwd(),
     env,
@@ -99,7 +104,12 @@ test('rollback removes targets that did not exist before deploy', () => {
   repo.upsertArtifact(artifact(source));
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: dbPath, QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: dbPath,
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   const deployOut = execFileSync('bun', ['src/cli/index.ts', 'deploy', 'rollback-profile', '--yes', '--json'], {
     cwd: process.cwd(),
     env,
@@ -150,7 +160,12 @@ test('qm status reports placements, drift, and orphaned files', () => {
   repo.upsertArtifact(artifact(source));
   repo.close();
 
-  const env = { ...process.env, QM_DB_PATH: dbPath, QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: dbPath,
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   execFileSync('bun', ['src/cli/index.ts', 'deploy', 'rollback-profile', '--yes', '--json'], {
     cwd: process.cwd(),
     env,

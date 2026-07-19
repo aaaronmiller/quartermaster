@@ -15,6 +15,7 @@ import { deployCommand, rollbackCommand } from './commands/deploy';
 import { evalCommand } from './commands/eval';
 import { importCommand } from './commands/import';
 import { loadoutCommand } from './commands/loadout';
+import { libraryCommand } from './commands/library';
 import { mcpCommand } from './commands/mcp';
 import { newCommand } from './commands/new';
 import { profileCommand } from './commands/profile';
@@ -58,6 +59,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   new: { summary: 'Scaffold a self-authored artifact', fr: 'FR-050', handler: newCommand },
   compose: { summary: 'Validate optional artifact composition chains', fr: 'FR-080', handler: composeCommand },
   loadout: { summary: 'Manage loadouts', fr: 'FR-090..094', handler: loadoutCommand },
+  library: { summary: 'Validate and prepare the provenance-linked source library', fr: 'FR-010..014', handler: libraryCommand },
   pipeline: { summary: 'Define and attach pipelines', fr: 'FR-110..113', handler: pipelineCommand },
   eval: { summary: 'Advisory grading, comparison, proposals', fr: 'FR-100..105', handler: evalCommand },
   proposal: { summary: 'Review agentic proposals', fr: 'FR-104,105', handler: proposalCommand },
@@ -113,12 +115,12 @@ async function main(): Promise<void> {
   const json = flags.json === true;
 
   // Global flags / no command.
-  if (!command || command === 'help' || flags.help) {
-    printHelp(json);
-    process.exit(EXIT.ok);
-  }
   if (command === 'version' || flags.version) {
     printVersion(json);
+    process.exit(EXIT.ok);
+  }
+  if (!command || command === 'help' || flags.help) {
+    printHelp(json);
     process.exit(EXIT.ok);
   }
 

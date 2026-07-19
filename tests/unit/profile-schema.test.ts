@@ -74,14 +74,22 @@ describe('profile schema (FR-020)', () => {
   test('built-in profiles expose declarative layout, capabilities, guidance, and version', () => {
     const profiles = loadBuiltInProfiles();
     expect(profiles.map((profile) => profile.id).sort()).toEqual([
+      'ante',
       'antigravity',
       'claude-code',
       'codex',
+      'gemini',
+      'hermes',
+      'kilocode',
+      'omp',
+      'openclaw',
       'opencode',
+      'pi',
+      'qwen',
     ]);
     for (const profile of profiles) {
       expect(profile.version).toBeGreaterThanOrEqual(1);
-      expect(profile.guidanceFilename).toMatch(/^(AGENTS|CLAUDE)\.md$/);
+      expect(profile.guidanceFilename.length).toBeGreaterThan(0);
       expect(profile.artifactTypes.length).toBeGreaterThan(0);
       expect(profile.capabilities.length).toBeGreaterThan(0);
       for (const entry of profile.artifactTypes) {
@@ -123,8 +131,28 @@ describe('built-in profile conventions (FR-021)', () => {
     expect(byId.get('antigravity')?.artifactTypes.find((entry) => entry.type === 'mcp-config')?.configFormat).toBe('antigravity-json');
     expect(byId.get('antigravity')?.capabilities.some((cap) => cap.type === 'hooks')).toBe(true);
 
-    expect(byId.get('opencode')?.artifactTypes.find((entry) => entry.type === 'skill')?.dirname).toBe('skill');
+    expect(byId.get('opencode')?.artifactTypes.find((entry) => entry.type === 'skill')?.dirname).toBe('skills');
     expect(byId.get('opencode')?.artifactTypes.find((entry) => entry.type === 'mcp-config')?.configFormat).toBe('opencode-json');
+  });
+
+  test('all twelve active skillshare targets have a declarative profile', () => {
+    const ids = new Set(loadBuiltInProfiles().map((profile) => profile.id));
+    for (const id of [
+      'claude-code',
+      'codex',
+      'hermes',
+      'openclaw',
+      'opencode',
+      'qwen',
+      'omp',
+      'gemini',
+      'kilocode',
+      'pi',
+      'antigravity',
+      'ante',
+    ]) {
+      expect(ids.has(id)).toBe(true);
+    }
   });
 });
 
@@ -143,13 +171,13 @@ describe('custom and versionable profiles (FR-022/023)', () => {
     const artifact = skillArtifact();
     const firstProfile = new ProfileRegistry({ includeDefaultDirs: false, profileDirs: [dir] }).getProfile('custom')!;
     const firstVerdict = computeVerdict(artifact, firstProfile);
-    const firstPlan = compilePlan([artifact], [firstVerdict], firstProfile);
+    const firstPlan = compilePlan([artifact], [firstVerdict], firstProfile, { targetScope: 'project' });
     expect(firstPlan.operations[0]?.targetPath).toContain('.custom/skills');
 
     writeProfile(dir, '.custom-v2/skills');
     const secondProfile = new ProfileRegistry({ includeDefaultDirs: false, profileDirs: [dir] }).getProfile('custom')!;
     const secondVerdict = computeVerdict(artifact, secondProfile);
-    const secondPlan = compilePlan([artifact], [secondVerdict], secondProfile);
+    const secondPlan = compilePlan([artifact], [secondVerdict], secondProfile, { targetScope: 'project' });
     expect(secondPlan.operations[0]?.targetPath).toContain('.custom-v2/skills');
   });
 

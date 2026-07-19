@@ -7,13 +7,14 @@ import { loadConfig } from '@core/config/load';
 import { PipelineManager } from '@core/pipelines/pipelines';
 import { validatePipeline, validateAllPipelines } from '@core/pipelines/validate';
 import { proposePipelines } from '@core/pipelines/propose';
+import { PIPELINE_TEMPLATES } from '@core/pipelines/templates';
 import type { PipelineDefinition } from '@core/types';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
 
 export async function pipelineCommand(args: ParsedArgs): Promise<OutputEnvelope> {
-  const [sub, name, first, second] = args.positional;
+  const [sub, name, _first, _second] = args.positional;
   const cfg = loadConfig();
   const repo = new Repository({ dbPath: cfg.dbPath });
   try {
@@ -22,7 +23,7 @@ export async function pipelineCommand(args: ParsedArgs): Promise<OutputEnvelope>
       case undefined:
         return success('pipeline', { pipelines: repo.queryRaw('SELECT name, artifacts, directives FROM pipelines') });
 
-      case 'create':
+      case 'create': {
         if (!name) return failure('pipeline', 'usage: qm pipeline create <name> <artifact-id>...');
         const artifacts = args.positional.slice(2);
         const pipeline: PipelineDefinition = {
@@ -33,34 +34,41 @@ export async function pipelineCommand(args: ParsedArgs): Promise<OutputEnvelope>
         const manager = new PipelineManager(repo);
         manager.create(pipeline);
         return success('pipeline', { pipeline });
+      }
 
-      case 'get':
+      case 'get': {
         if (!name) return failure('pipeline', 'usage: qm pipeline get <name>');
         const mgr = new PipelineManager(repo);
         const found = mgr.get(name);
         if (!found) return failure('pipeline', `pipeline not found: ${name}`);
         return success('pipeline', { pipeline: found });
+      }
 
-      case 'delete':
+      case 'delete': {
         if (!name) return failure('pipeline', 'usage: qm pipeline delete <name>');
         const delMgr = new PipelineManager(repo);
         delMgr.delete(name);
         return success('pipeline', { deleted: name });
+      }
 
-      case 'validate':
+      case 'validate': {
         const valMgr = new PipelineManager(repo);
         const toValidate = name ? valMgr.get(name) : null;
         if (name && !toValidate) return failure('pipeline', `pipeline not found: ${name}`);
-        const result = name
-          ? validatePipeline(repo, toValidate!, args.flags.composition === 'true')
+        const result = name && toValidate
+          ? validatePipeline(repo, toValidate, args.flags.composition === 'true')
           : validateAllPipelines(repo, args.flags.composition === 'true');
         return success('pipeline', result);
+      }
 
       case 'propose':
         return proposeHandler(args, repo, cfg);
 
+      case 'templates':
+        return success('pipeline', { templates: PIPELINE_TEMPLATES });
+
       default:
-        return failure('pipeline', 'usage: qm pipeline list|create|get|delete|validate|propose');
+        return failure('pipeline', 'usage: qm pipeline list|create|get|delete|validate|propose|templates');
     }
   } catch (err) {
     return failure('pipeline', (err as Error).message);

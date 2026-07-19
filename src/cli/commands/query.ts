@@ -4,14 +4,14 @@
 // ─────────────────────────────────────────────────────────────
 
 import { loadConfig } from '@core/config/load';
-import { queryArtifacts, queryArtifact, queryCompatibility, queryDeployment, querySearch, scaffoldArtifact } from '@core/query/commands';
+import { queryArtifacts, queryArtifact, queryCompatibility, queryDeployment, queryRelated, querySearch, scaffoldArtifact } from '@core/query/commands';
 import type { ArtifactType } from '@core/types';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
 import type { ParsedArgs } from '../output';
 
 export function queryCommand(args: ParsedArgs): OutputEnvelope {
-  const [sub, id, first, second] = args.positional;
+  const [sub, id, first, _second] = args.positional;
   const cfg = loadConfig();
   const repo = new Repository({ dbPath: cfg.dbPath });
 
@@ -21,28 +21,37 @@ export function queryCommand(args: ParsedArgs): OutputEnvelope {
       case 'list-skills':
         return success('query', queryArtifacts(repo));
 
-      case 'search':
+      case 'search': {
         const searchOpts: { text?: string; type?: string; capability?: string } = {};
         if (args.flags.text) searchOpts.text = args.flags.text as string;
         if (args.flags.type) searchOpts.type = args.flags.type as string;
         if (args.flags.capability) searchOpts.capability = args.flags.capability as string;
         return success('query', querySearch(repo, searchOpts));
+      }
 
-      case 'get':
+      case 'get': {
         if (!id) return failure('query', 'usage: qm query get <artifact-id>');
         const artifact = queryArtifact(repo, id);
         if (!artifact) return failure('query', `artifact not found: ${id}`);
         return success('query', { artifact });
+      }
 
-      case 'audit':
+      case 'audit': {
         if (!id) return failure('query', 'usage: qm query audit <artifact-id>');
         const compatibility = queryCompatibility(repo, id);
         if (!compatibility) return failure('query', `artifact not found: ${id}`);
         return success('query', compatibility);
+      }
 
-      case 'status':
+      case 'status': {
         const harness = id ?? first ?? 'claude-code';
         return success('query', queryDeployment(repo, harness));
+      }
+
+      case 'related': {
+        if (!id) return failure('query', 'usage: qm query related <artifact-id>');
+        return success('query', { artifactId: id, relationships: queryRelated(repo, id) });
+      }
 
       case 'scaffold':
         if (!id || !first) return failure('query', 'usage: qm query scaffold <type> <path>');
@@ -53,7 +62,7 @@ export function queryCommand(args: ParsedArgs): OutputEnvelope {
         }
 
       default:
-        return failure('query', 'usage: qm query list|search|get|audit|status|scaffold');
+        return failure('query', 'usage: qm query list|search|get|audit|status|related|scaffold');
     }
   } finally {
     repo.close();

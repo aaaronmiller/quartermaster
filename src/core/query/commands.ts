@@ -3,13 +3,14 @@
 // Stable machine-readable output for agentic consumers.
 // ─────────────────────────────────────────────────────────────
 
-import { Repository } from '@storage/repository';
-import type { Artifact, ArtifactType, HarnessProfile } from '@core/types';
+import type { Repository } from '@storage/repository';
+import type { ArtifactType, } from '@core/types';
 import { computeVerdict } from '@core/audit/auditor';
 import { ProfileRegistry } from '@core/profiles/profile-registry';
 import { loadConfig } from '@core/config/load';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
+import { suggestRelatedArtifacts } from '@core/relationships/suggest';
 
 export interface QueryArtifactResult {
   id: string;
@@ -116,6 +117,11 @@ export function queryDeployment(repo: Repository, harness: string): QueryDeploym
     drift,
     orphans: [],
   };
+}
+
+/** Suggest explicit, pipeline-derived, and functionally related artifacts. */
+export function queryRelated(repo: Repository, artifactId: string): ReturnType<typeof suggestRelatedArtifacts> {
+  return suggestRelatedArtifacts(repo, artifactId);
 }
 
 /** Search artifacts by text, type, or capability. */

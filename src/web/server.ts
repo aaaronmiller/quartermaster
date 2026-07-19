@@ -47,9 +47,10 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
   const action = path.match(/^\/proposals\/([^/]+)\/(accept|reject)$/);
   if (action && req.method === 'POST') {
     const [, id, verb] = action;
+    if (!id) return new Response('invalid proposal id', { status: 400 });
     try {
-      if (verb === 'accept') acceptProposal(repo, id!);
-      else rejectProposal(repo, id!, 'rejected via web');
+      if (verb === 'accept') acceptProposal(repo, id);
+      else rejectProposal(repo, id, 'rejected via web');
     } catch {
       // fall through to re-render; failures surface as unchanged status
     }

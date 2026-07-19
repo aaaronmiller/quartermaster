@@ -13,6 +13,10 @@ export interface SearchQuery {
   path?: string;
   text?: string;
   tags?: string[];
+  lifecycle?: string;
+  function?: string;
+  sourceClass?: string;
+  compositionRole?: string;
   limit?: number;
   offset?: number;
 }
@@ -71,13 +75,24 @@ export function searchCatalog(repo: Repository, query: SearchQuery): Artifact[] 
       params.push(`%"tags"%${tag}%`);
     }
   }
+  for (const [field, value] of [
+    ['lifecycle', query.lifecycle],
+    ['functions', query.function],
+    ['sourceClass', query.sourceClass],
+    ['compositionRole', query.compositionRole],
+  ] as const) {
+    if (value) {
+      conditions.push('metadata LIKE ?');
+      params.push(`%"${field}"%${value}%`);
+    }
+  }
 
   const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   const offset = query.offset ?? 0;
 
   let sql = 'SELECT * FROM artifacts';
   if (conditions.length > 0) {
-    sql += ' WHERE ' + conditions.join(' AND ');
+    sql += ` WHERE ${conditions.join(' AND ')}`;
   }
   sql += ' ORDER BY name ASC LIMIT ? OFFSET ?';
   params.push(String(limit), String(offset));
@@ -116,7 +131,7 @@ export function countCatalog(repo: Repository, query: SearchQuery): number {
 
   let sql = 'SELECT COUNT(*) as cnt FROM artifacts';
   if (conditions.length > 0) {
-    sql += ' WHERE ' + conditions.join(' AND ');
+    sql += ` WHERE ${conditions.join(' AND ')}`;
   }
 
   const row = repo.queryRow<{ cnt: number }>(sql, params);

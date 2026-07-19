@@ -5,7 +5,13 @@
 
 import { computeCompatibilityMatrix, loadVerdictOverrides } from '@core/audit/auditor';
 import { loadConfig } from '@core/config/load';
-import { compilePlan, type PlanOptions, type PlanSafetyGate, type PlanScope } from '@core/deploy/plan';
+import {
+  compilePlan,
+  type PlanOptions,
+  type PlanSafetyGate,
+  type PlanScope,
+  resolveTargetDirectory,
+} from '@core/deploy/plan';
 import type { Artifact } from '@core/types';
 import { computeSafetyScore } from '@core/safety/findings';
 import { executePlacement } from '@core/deploy/placer';
@@ -30,16 +36,23 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
     if (!targets.ok) return failure('deploy', targets.reason);
     const artifacts = repo.listArtifacts();
     const loadouts = new LoadoutManager(repo);
+    if (cfg.deployment.requireLoadout) {
+      const missing = targets.ids.filter((id) => loadouts.getActiveLoadout(id) === null);
+      if (missing.length > 0) {
+        return failure('deploy', `active loadout required for: ${missing.join(', ')}`);
+      }
+    }
     const overrides = loadVerdictOverrides(repo);
     const profiles = targets.ids.map((id) => registry.getProfile(id)).filter((p) => p !== null);
     const scope = parseScope(args.flags.scope);
+    const targetScope = args.flags.project === true ? 'project' : 'global';
     // FR-141: build the safety gate from persisted findings/overrides/allowlist.
     const safetyGate = buildSafetyGate(repo, artifacts, cfg.safety?.threshold ?? 0.6);
     const plans = profiles.map((profile) => {
       const scopedArtifacts = loadouts.filterArtifactsForHarness(artifacts, profile.id);
       const matrix = computeCompatibilityMatrix(scopedArtifacts, [profile], overrides);
-      const verdicts = matrix.map((row) => row[0]!).filter(Boolean);
-      const planOpts: PlanOptions = { safety: safetyGate };
+      const verdicts = matrix.flatMap((row) => (row[0] ? [row[0]] : []));
+      const planOpts: PlanOptions = { safety: safetyGate, targetScope };
       if (scope) planOpts.scope = scope;
       return compilePlan(scopedArtifacts, verdicts, profile, planOpts);
     });
@@ -57,7 +70,11 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
           const pipelineMgr = new PipelineManager(repo);
           const pipelines = activeDirectives.length > 0 ? activeDirectives : pipelineMgr.list();
           const canonicalContent = `# ${profile.id} Guidance\n\nManaged by Quartermaster.`;
-          const existingGuidancePath = join(plan.operations[0]?.targetPath ?? '', '..', harnessGuidanceFilename(profile.id));
+          const skillLocation = profile.artifactTypes.find((entry) => entry.type === 'skill');
+          const guidanceRoot = skillLocation
+            ? resolveTargetDirectory(skillLocation.locations, targetScope)
+            : join(plan.operations[0]?.targetPath ?? '.', '..');
+          const existingGuidancePath = join(guidanceRoot, harnessGuidanceFilename(profile.id));
           const existingFile = existsSync(existingGuidancePath)
             ? readFileSync(existingGuidancePath, 'utf8')
             : '';
@@ -67,10 +84,7 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
             targetHarness: profile.id,
             existingFile,
           });
-          const guidancePath = join(
-            plan.operations[0]?.targetPath.split('/').slice(0, -1).join('/') ?? '.',
-            harnessGuidanceFilename(profile.id),
-          );
+          const guidancePath = join(guidanceRoot, harnessGuidanceFilename(profile.id));
           writeFileSync(guidancePath, rendered.content);
         }
         const record = createRecord(

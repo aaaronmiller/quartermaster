@@ -44,7 +44,12 @@ test('end-to-end CLI quickstart: scan, audit, deploy, status, rollback (NFR-051)
     `id: qsd\nname: QSD\nversion: 1\nguidanceFilename: AGENTS.md\nartifactTypes:\n  - type: skill\n    locations: { global: "${targetDir}", project: "${targetDir}" }\n    flat: false\n    configFormat: null\ncapabilities:\n  - type: skill\n    dialects: [agent-md]\ndeployment:\n  method: copy\n  crossDevice: false\n  priorStateBackup: true\n`,
   );
 
-  const env = { ...process.env, QM_DB_PATH: dbPath, QM_PROFILE_DIR: profileDir };
+  const env = {
+    ...process.env,
+    QM_DB_PATH: dbPath,
+    QM_PROFILE_DIR: profileDir,
+    QM_REQUIRE_LOADOUT: 'false',
+  };
   const qm = (args: string[]) => {
     try {
       return JSON.parse(execFileSync('bun', ['src/cli/index.ts', ...args, '--json'], { cwd: process.cwd(), env, encoding: 'utf8' }));
@@ -63,7 +68,8 @@ test('end-to-end CLI quickstart: scan, audit, deploy, status, rollback (NFR-051)
 
   const deploy = qm(['deploy', 'qsd', '--yes']);
   expect(deploy.ok).toBe(true);
-  expect(existsSync(join(targetDir, 'SKILL.md'))).toBe(true);
+  const deployedSkill = join(targetDir, 'library', 'SKILL.md');
+  expect(existsSync(deployedSkill)).toBe(true);
 
   const status = qm(['status', 'qsd']);
   expect(status.ok).toBe(true);
@@ -73,5 +79,5 @@ test('end-to-end CLI quickstart: scan, audit, deploy, status, rollback (NFR-051)
   expect(typeof deployId).toBe('string');
   const rollback = qm(['rollback', deployId]);
   expect(rollback.ok).toBe(true);
-  expect(existsSync(join(targetDir, 'SKILL.md'))).toBe(false);
+  expect(existsSync(deployedSkill)).toBe(false);
 });
