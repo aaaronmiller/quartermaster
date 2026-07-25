@@ -47,3 +47,7 @@ profiles/*.yaml
 
 # Web UI runtime
 src/web/public/
+
+# Agent workspace dirs
+.citadel/
+.claude/
