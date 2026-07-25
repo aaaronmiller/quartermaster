@@ -2,14 +2,14 @@ name: opencode
 artifactTypes:
   - type: skill
     locations:
-      global: /home/cheta/.opencode/skills/
-      project: .opencode/skills/
+      global: /home/cheta/.config/opencode/skills/
+      project: .config/opencode/skills/
     flat: false
     configFormat: null
   - type: plugin
     locations:
-      global: /home/cheta/.opencode/plugins/
-      project: .opencode/plugins/
+      global: /home/cheta/.config/opencode/plugins/
+      project: .config/opencode/plugins/
     flat: false
     configFormat: json
 capabilities:
@@ -18,6 +18,11 @@ capabilities:
   - type: plugin
     dialects: [generic]
 deployment:
-  method: copy
+  method: link
   crossDevice: false
   priorStateBackup: true
+guidance:
+  files:
+    - path: /home/cheta/.config/opencode/AGENTS.md
+      marker: "<!-- QM: managed -->"
+      position: tail

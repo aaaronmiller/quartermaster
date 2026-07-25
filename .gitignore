@@ -33,3 +33,17 @@ tests/tmp/
 
 # Historical backup (preserved locally, not version-controlled)
 .archive/
+
+# Living documents
+.living-documents/
+# Quartermaster runtime
+.quartermaster/
+# Profiles generated at setup time
+profiles/*.yaml
+!profiles/claude-code.yaml
+!profiles/codex.yaml
+!profiles/antigravity.yaml
+!profiles/example.yaml
+
+# Web UI runtime
+src/web/public/
