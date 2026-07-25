@@ -1,0 +1,20 @@
+name: antigravity-cli
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.gemini/antigravity-cli/skills/
+      project: .gemini/antigravity-cli/skills/
+    flat: false
+    configFormat: null
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true
+guidance:
+  files:
+    - path: /home/cheta/.gemini/antigravity-cli/AGENTS.md
+      marker: "<!-- QM: managed -->"
+      position: tail

@@ -1,0 +1,28 @@
+name: omp
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.omp/agent/skills/
+      project: .omp/agent/skills/
+    flat: false
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.omp/extensions/
+      project: .omp/extensions/
+    flat: false
+    configFormat: ts
+capabilities:
+  - type: skill
+    dialects: [skill-md]
+  - type: plugin
+    dialects: [typescript]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true
+guidance:
+  files:
+    - path: /home/cheta/.omp/agent/AGENTS.md
+      marker: "<!-- QM: managed -->"
+      position: tail

@@ -1,0 +1,28 @@
+name: kilocode
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.kilocode/skills/
+      project: .kilocode/skills/
+    flat: false
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.kilocode/plugins/
+      project: .kilocode/plugins/
+    flat: false
+    configFormat: json
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: plugin
+    dialects: [generic]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true
+guidance:
+  files:
+    - path: /home/cheta/.kilocode/AGENTS.md
+      marker: "<!-- QM: managed -->"
+      position: tail

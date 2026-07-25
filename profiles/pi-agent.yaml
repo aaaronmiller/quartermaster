@@ -1,0 +1,28 @@
+name: pi-agent
+artifactTypes:
+  - type: skill
+    locations:
+      global: /home/cheta/.pi/agent/skills/
+      project: .pi/agent/skills/
+    flat: false
+    configFormat: null
+  - type: plugin
+    locations:
+      global: /home/cheta/.pi/agent/plugins/
+      project: .pi/agent/plugins/
+    flat: false
+    configFormat: json
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: plugin
+    dialects: [generic]
+deployment:
+  method: link
+  crossDevice: false
+  priorStateBackup: true
+guidance:
+  files:
+    - path: /home/cheta/.pi/agent/AGENTS.md
+      marker: "<!-- QM: managed -->"
+      position: tail

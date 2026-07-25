@@ -39,7 +39,6 @@ tests/tmp/
 # Quartermaster runtime
 .quartermaster/
 # Profiles generated at setup time
-profiles/*.yaml
 !profiles/claude-code.yaml
 !profiles/codex.yaml
 !profiles/antigravity.yaml
@@ -51,3 +50,10 @@ src/web/public/
 # Agent workspace dirs
 .citadel/
 .claude/
+!profiles/hermes.yaml
+!profiles/kilocode.yaml
+!profiles/pi-agent.yaml
+!profiles/omp.yaml
+!profiles/opencode.yaml
+!profiles/antigravity-cli.yaml
+!profiles/example.yaml
