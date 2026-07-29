@@ -1,0 +1,4 @@
+# kind|name|source|skill-file-override|extra-source|extra-target
+plugin|example-plugin|/fixtures/example-plugin|||
+skill|example-skill|/fixtures/example-skill|||
+skill|composite-skill|/fixtures/composite-skill|/fixtures/composite-skill/skill.md|/fixtures/composite-skill/always-on|always-on
