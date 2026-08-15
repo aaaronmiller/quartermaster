@@ -45,3 +45,26 @@ describe('exit codes', () => {
     expect(new Set([EXIT.ok, EXIT.failure, EXIT.usage, EXIT.notImplemented, EXIT.internal]).size).toBe(5);
   });
 });
+
+describe('value-flag space form and JSON envelope', () => {
+  test('--flag <value> space form consumes the next argv for known value flags', () => {
+    const p = parseArgs(['list', '--type', 'skill', '--capability', 'hooks']);
+    expect(p.command).toBe('list');
+    expect(p.flags.type).toBe('skill');
+    expect(p.flags.capability).toBe('hooks');
+    expect(p.positional).toEqual([]);
+  });
+
+  test('a value flag followed by another flag throws instead of silently misreading', () => {
+    expect(() => parseArgs(['list', '--type', '--json'])).toThrow(/requires a value/);
+  });
+
+  test('missing value for a value flag throws', () => {
+    expect(() => parseArgs(['new', 'skill', 'x', '--root'])).toThrow(/requires a value/);
+  });
+
+  test('--json=true and --json=1 parse as string forms', () => {
+    expect(parseArgs(['list', '--json=true']).flags.json).toBe('true');
+    expect(parseArgs(['list', '--json=1']).flags.json).toBe('1');
+  });
+});

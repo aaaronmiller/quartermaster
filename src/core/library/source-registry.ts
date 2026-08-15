@@ -67,6 +67,32 @@ export function loadSourceRegistry(registryPath: string): SourceRegistry {
   return validateSourceRegistry(parsed);
 }
 
+/**
+ * Resolve the canonical git-tracked authoring root for self-authored artifacts.
+ *
+ * Rule: the first active, trusted, first-party source tagged `canonical` or
+ * `user-authored` wins; otherwise the first active trusted first-party source;
+ * otherwise null. The resolved path must exist. This keeps `qm new` output in
+ * a git-tracked home (e.g. custom-skills) instead of an untracked library dir.
+ */
+export function resolveAuthorRoot(registryPath: string): string | null {
+  const registry = loadSourceRegistry(registryPath);
+  const usable = (s: SkillSourceRegistration) =>
+    s.class === 'first-party' &&
+    s.lifecycle !== 'deprecated' &&
+    s.lifecycle !== 'quarantined' &&
+    s.trusted !== false;
+  const canonical = registry.sources.find(
+    (s) => usable(s) && (s.tags ?? []).some((t) => t === 'canonical' || t === 'user-authored'),
+  );
+  const active = registry.sources.find(usable);
+  const chosen = canonical ?? active;
+  if (!chosen) return null;
+  const base = expandPath(chosen.path);
+  const target = chosen.subpath ? join(base, chosen.subpath) : base;
+  return existsSync(target) ? target : null;
+}
+
 export function validateSourceRegistry(value: unknown): SourceRegistry {
   if (!value || typeof value !== 'object') throw new SourceRegistryError('source registry must be an object');
   const raw = value as Record<string, unknown>;

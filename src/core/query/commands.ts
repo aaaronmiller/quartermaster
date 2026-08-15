@@ -8,6 +8,7 @@ import type { ArtifactType, } from '@core/types';
 import { computeVerdict } from '@core/audit/auditor';
 import { ProfileRegistry } from '@core/profiles/profile-registry';
 import { loadConfig } from '@core/config/load';
+import { resolveAuthorRoot } from '@core/library/source-registry';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
 import { suggestRelatedArtifacts } from '@core/relationships/suggest';
@@ -17,6 +18,8 @@ export interface QueryArtifactResult {
   type: string;
   name: string;
   org_path: string;
+  path: string;
+  hash: string;
   required_capabilities: string[];
   risk_flags: unknown[];
   source_id: string;
@@ -36,14 +39,18 @@ export interface QueryDeploymentResult {
 }
 
 /** List all artifacts in the catalog with stable fields. */
-export function queryArtifacts(repo: Repository): { artifacts: QueryArtifactResult[] } {
-  const artifacts = repo.listArtifacts();
+export function queryArtifacts(repo: Repository, filter?: { type?: string }): { artifacts: QueryArtifactResult[] } {
+  const artifacts = repo
+    .listArtifacts()
+    .filter((a) => !filter?.type || a.type === filter.type);
   return {
     artifacts: artifacts.map((a) => ({
       id: a.id,
       type: a.type,
       name: a.name,
       org_path: a.organizationalPath,
+      path: a.path,
+      hash: a.hash,
       required_capabilities: a.capabilities.map((c) => c.type),
       risk_flags: a.riskFlags ?? [],
       source_id: a.source.kind,
@@ -60,6 +67,8 @@ export function queryArtifact(repo: Repository, id: string): QueryArtifactResult
     type: artifact.type,
     name: artifact.name,
     org_path: artifact.organizationalPath,
+    path: artifact.path,
+    hash: artifact.hash,
     required_capabilities: artifact.capabilities.map((c) => c.type),
     risk_flags: artifact.riskFlags ?? [],
     source_id: artifact.source.kind,
@@ -159,6 +168,8 @@ export function querySearch(
       type: a.type,
       name: a.name,
       org_path: a.organizationalPath,
+      path: a.path,
+      hash: a.hash,
       required_capabilities: a.capabilities.map((c) => c.type),
       risk_flags: a.riskFlags ?? [],
       source_id: a.source.kind,
@@ -205,7 +216,14 @@ export function scaffoldTemplate(type: ArtifactType, path: string): string | nul
 export function scaffoldArtifact(type: ArtifactType, rawPath: string, root?: string): ScaffoldResult {
   const content = scaffoldTemplate(type, rawPath);
   if (content === null) throw new Error(`unsupported artifact type: ${type}`);
-  const base = root ?? loadConfig().roots[0] ?? process.cwd();
+  const config = loadConfig();
+  // Prefer an explicit root, then the canonical git-tracked authoring root
+  // (first-party source registry), then the configured library root.
+  const base =
+    root ??
+    resolveAuthorRoot(config.sourceRegistry) ??
+    config.roots[0] ??
+    process.cwd();
   const target = isAbsolute(rawPath) ? rawPath : join(base, rawPath);
   if (existsSync(target)) throw new Error(`target already exists: ${target}`);
   mkdirSync(dirname(target), { recursive: true });

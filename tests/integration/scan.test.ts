@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { computeVerdict } from '../../src/core/audit/auditor';
 import { rescanIncremental, scanRoots } from '../../src/core/catalog/scanner';
@@ -146,12 +147,18 @@ describe('scan (FR-001 / FR-002 / FR-005)', () => {
   test('qm new skill scaffolds into a subfolder, scans, and audits as deployable (FR-050)', async () => {
     const { repo, dir } = tempRepo();
     const root = join(dir, 'library');
+    // Registry without an authoring source: `qm new` falls back to the library root.
+    const registry = join(dir, 'sources.yaml');
+    writeFileSync(
+      registry,
+      `version: 1\nlibraryRoot: ${root}\nsources:\n  - id: third-party\n    class: third-party\n    path: ${join(dir, 'tp')}\n    lifecycle: active\n`,
+    );
     execFileSync(
       'bun',
       ['src/cli/index.ts', 'new', 'skill', 'research/my-skill/SKILL.md', '--json'],
       {
         cwd: process.cwd(),
-        env: { ...process.env, QM_ROOTS: root, QM_DB_PATH: join(dir, 'catalog.sqlite') },
+        env: { ...process.env, QM_ROOTS: root, QM_DB_PATH: join(dir, 'catalog.sqlite'), QM_SOURCE_REGISTRY: registry },
       },
     );
     await scanRoots([root], repo);
@@ -160,5 +167,44 @@ describe('scan (FR-001 / FR-002 / FR-005)', () => {
     const custom = loadBuiltInProfiles().find((profile) => profile.id === 'claude-code')!;
     expect(computeVerdict(skill!, custom).verdict).not.toBe('incompatible');
     repo.close();
+  });
+
+  test('qm new scaffolds into the canonical first-party authoring root when one is registered', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'qm-new-author-'));
+    const author = join(dir, 'custom-skills');
+    const root = join(dir, 'library');
+    mkdirSync(author);
+    writeFileSync(join(author, 'SKILL.md'), '---\nname: placeholder\n---\n');
+    const registry = join(dir, 'sources.yaml');
+    writeFileSync(
+      registry,
+      `version: 1\nlibraryRoot: ${root}\nsources:\n  - id: custom-skills\n    class: first-party\n    path: ${author}\n    lifecycle: active\n    trusted: true\n    tags: [user-authored, canonical]\n`,
+    );
+    const out = execFileSync(
+      'bun',
+      ['src/cli/index.ts', 'new', 'skill', 'research/author-skill/SKILL.md', '--json'],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, QM_ROOTS: root, QM_SOURCE_REGISTRY: registry },
+        encoding: 'utf8',
+      },
+    );
+    const parsed = JSON.parse(out);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data.path.startsWith(author)).toBe(true);
+    expect(existsSync(join(author, 'research/author-skill/SKILL.md'))).toBe(true);
+    // Explicit --root still wins over the authoring root.
+    const override = join(dir, 'override-root');
+    mkdirSync(override);
+    const out2 = execFileSync(
+      'bun',
+      ['src/cli/index.ts', 'new', 'skill', 'x/SKILL.md', '--root', override, '--json'],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, QM_ROOTS: root, QM_SOURCE_REGISTRY: registry },
+        encoding: 'utf8',
+      },
+    );
+    expect(JSON.parse(out2).data.path.startsWith(override)).toBe(true);
   });
 });

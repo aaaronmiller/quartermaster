@@ -222,13 +222,13 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 | `qm import <source> [--kind=git] [--kind=git_subdir] [--kind=marketplace] [--kind=local]` | Import from git, git subdir, marketplace, or local path |
 | `qm sync [--check] [--confirm]` | Report upstream currency (unchanged / ahead / conflict) |
 | `qm pin <id> <rev>` / `qm unpin <id>` | Pin to a revision -- skipped during sync |
-| `qm new <type> <path>` | Scaffold a self-authored artifact in a library subfolder |
+| `qm new <type> <path> [--root <path>]` | Scaffold a self-authored artifact into the canonical first-party authoring root (fallback: library root); `--root` overrides |
 
 ### Profiles, audit & deploy
 
 | Command | Description |
 |---------|-------------|
-| `qm profile add/list/edit/validate <id>` | Manage declarative harness profiles (data-driven) |
+| `qm profile list \| show <id> \| add <file> \| edit <file> \| validate <file-or-id>` | Manage declarative harness profiles (data-driven) |
 | `qm audit [--matrix]` | Compatibility verdict per (artifact × harness) |
 | `qm audit override <id> <harness> --status <v> --note "<n>"` | Manual verdict override |
 | `qm audit risk` | Scan risk indicators (bundled scripts, network, secrets) |
@@ -300,6 +300,25 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 | Command | Description |
 |---------|-------------|
 | `qm compose validate <chain.json>` | Validate Noun/Verb/Adjective artifact chain |
+
+## Exit codes and cron notes
+
+`qm` exit codes are stable and documented for automation (`run-job.sh` captures them into the failure trail):
+
+| Code | Meaning |
+|---|---|
+| 0 | Command ran. With `--json`, per-artifact errors appear in `data.errors` while the run still succeeds — monitoring must grep errors, not just rc. |
+| 1 | Command ran but refused/failed for a stated reason (e.g. `qm sync` conflict without `--confirm`). |
+| 2 | Usage error: unknown command or bad/missing flag value. |
+| 3 | Command recognized but not yet implemented (honest, never a fake success). |
+| 4 | Unexpected internal error. |
+
+Cron notes:
+
+- `qm scan && qm sync` run daily at 08:10 via `cronjobs/bin/qm-sync.sh` under `run-job.sh`. Both commands are non-interactive: no prompt, no TTY dependency. Do not pass `--yes`/`--confirm` in cron unless intentional — sync refuses to overwrite locally modified artifacts without it.
+- `qm sync` exits 1 on conflict-report without `--confirm`; uncaught internal failures exit 4 (scan exits 1 on failure via its own catch). Nonzero is nonzero for the failure trail; the distinction is diagnostic.
+- For grep-friendly cron logs use `--json`: every command emits one compact `{ok,command,data,reason}` envelope line.
+- Value flags accept both `--flag=value` and `--flag value` forms. A value flag without a value is a usage error (exit 2), never a silent misread.
 
 ## Config reference
 

@@ -66,8 +66,16 @@ test('query list/search/get emit parseable structured JSON (FR-130)', () => {
 
   const list = cli(dbPath, ['list-skills']);
   expect(list.ok).toBe(true);
-  expect(list.data.artifacts).toHaveLength(2);
+  // list-skills returns only skill-typed artifacts (beta is a hook).
+  expect(list.data.artifacts).toHaveLength(1);
+  expect(list.data.artifacts[0].id).toBe('alpha');
   expect(list.data.artifacts[0]).toHaveProperty('required_capabilities');
+  expect(list.data.artifacts[0]).toHaveProperty('path');
+  expect(list.data.artifacts[0]).toHaveProperty('hash');
+
+  const all = cli(dbPath, ['list']);
+  expect(all.ok).toBe(true);
+  expect(all.data.artifacts).toHaveLength(2);
 
   const search = cli(dbPath, ['search', '--capability=hooks']);
   expect(search.ok).toBe(true);
@@ -76,6 +84,8 @@ test('query list/search/get emit parseable structured JSON (FR-130)', () => {
   const get = cli(dbPath, ['get', 'alpha']);
   expect(get.ok).toBe(true);
   expect(get.data.artifact.id).toBe('alpha');
+  expect(get.data.artifact.path).toBe('/lib/alpha.md');
+  expect(get.data.artifact.hash).toBe('alpha');
 
   const missing = cli(dbPath, ['get', 'nope']);
   expect(missing.ok).toBe(false); // structured failure envelope with a reason
@@ -118,7 +128,7 @@ test('MCP is opt-in and disabled by default (FR-132)', () => {
 test('MCP dispatchTool returns the same data as the underlying query ops (FR-132)', () => {
   const { repo } = seededRepo();
 
-  expect(dispatchTool(repo, 'list_skills')).toEqual(queryArtifacts(repo));
+  expect(dispatchTool(repo, 'list_skills')).toEqual(queryArtifacts(repo, { type: 'skill' }));
   expect(dispatchTool(repo, 'search', { capability: 'hooks' })).toEqual(querySearch(repo, { capability: 'hooks' }));
   expect(dispatchTool(repo, 'get', { id: 'alpha' })).toEqual({ artifact: queryArtifact(repo, 'alpha') });
   expect(dispatchTool(repo, 'audit', { id: 'beta' })).toEqual(queryCompatibility(repo, 'beta'));
@@ -144,6 +154,6 @@ test('MCP JSON-RPC handshake, tools/list, and tools/call work (FR-132)', () => {
     params: { name: 'list_skills', arguments: {} },
   });
   const text = (call?.result as any).content[0].text;
-  expect(JSON.parse(text)).toEqual(queryArtifacts(repo));
+  expect(JSON.parse(text)).toEqual(queryArtifacts(repo, { type: 'skill' }));
   repo.close();
 });

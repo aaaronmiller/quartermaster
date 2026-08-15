@@ -96,7 +96,7 @@ export class McpToolError extends Error {}
 export function dispatchTool(repo: Repository, name: string, args: Record<string, unknown> = {}): unknown {
   switch (name) {
     case 'list_skills':
-      return queryArtifacts(repo);
+      return queryArtifacts(repo, { type: 'skill' });
     case 'search': {
       const opts: { text?: string; type?: string; capability?: string } = {};
       if (typeof args.text === 'string') opts.text = args.text;

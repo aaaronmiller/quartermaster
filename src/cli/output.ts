@@ -41,15 +41,44 @@ export interface ParsedArgs {
   command: string;
   positional: string[];
   flags: {
-    json: boolean;
-    verbose: boolean;
-    help: boolean;
-    version: boolean;
-    yes: boolean;
+    /** Boolean flags; `--flag=true` forms arrive as the strings 'true'/'1'. */
+    json: boolean | string;
+    verbose: boolean | string;
+    help: boolean | string;
+    version: boolean | string;
+    yes: boolean | string;
     /** Any other --key or --key=value flag. */
     [key: string]: boolean | string;
   };
 }
+
+/**
+ * Flags that take a value and accept `--flag <value>` space form.
+ * Every flag a command handler reads as a string belongs here; a boolean
+ * flag left in the space form would silently swallow the next argument.
+ */
+const VALUE_FLAGS = new Set([
+  'capability',
+  'categories',
+  'function',
+  'kind',
+  'lifecycle',
+  'note',
+  'path',
+  'pin',
+  'port',
+  'reason',
+  'ref',
+  'role',
+  'root',
+  'source',
+  'subdir',
+  'tag',
+  'target',
+  'text',
+  'turns',
+  'type',
+]);
 
 /**
  * Parse argv into a command, positional args, and flags.
@@ -65,7 +94,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     yes: false,
   };
 
-  for (const arg of argv) {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] ?? '';
     if (arg === '-h') {
       flags.help = true;
     } else if (arg === '-v') {
@@ -75,6 +105,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
       const eq = body.indexOf('=');
       if (eq >= 0) {
         flags[body.slice(0, eq)] = body.slice(eq + 1);
+      } else if (VALUE_FLAGS.has(body)) {
+        // Space form: --flag <value> consumes the next argv entry.
+        const value = argv[i + 1];
+        if (value === undefined || value.startsWith('-')) {
+          throw new Error(`flag --${body} requires a value`);
+        }
+        flags[body] = value;
+        i += 1;
       } else {
         flags[body] = true;
       }

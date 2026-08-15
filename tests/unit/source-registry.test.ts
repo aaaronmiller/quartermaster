@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   applySourceLibrary,
   planSourceLibrary,
+  resolveAuthorRoot,
   rollbackSourceLibrary,
 } from '../../src/core/library/source-registry';
 
@@ -54,5 +55,51 @@ describe('source-linked library', () => {
     const plan = planSourceLibrary(registry);
     expect(plan.conflicts).toHaveLength(1);
     expect(plan.operations).toHaveLength(0);
+  });
+});
+
+describe('resolveAuthorRoot', () => {
+  function authorFixture(tags?: string[], extra?: string): { registry: string; author: string; root: string } {
+    const dir = mkdtempSync(join(tmpdir(), 'qm-author-'));
+    const author = join(dir, 'author-skills');
+    const root = join(dir, 'library');
+    mkdirSync(author);
+    writeFileSync(join(author, 'SKILL.md'), '---\nname: placeholder\n---\n');
+    const tagLine = tags ? `    tags: [${tags.join(', ')}]\n` : '';
+    writeFileSync(
+      join(dir, 'sources.yaml'),
+      `version: 1\nlibraryRoot: ${root}\nsources:\n  - id: author\n    class: first-party\n    path: ${author}\n    lifecycle: active\n    trusted: true\n${tagLine}${extra ?? ''}`,
+    );
+    return { registry: join(dir, 'sources.yaml'), author, root };
+  }
+
+  test('canonical user-authored first-party source wins', () => {
+    const { registry, author } = authorFixture(['user-authored', 'canonical']);
+    expect(resolveAuthorRoot(registry)).toBe(author);
+  });
+
+  test('falls back to any active trusted first-party source without tags', () => {
+    const { registry, author } = authorFixture();
+    expect(resolveAuthorRoot(registry)).toBe(author);
+  });
+
+  test('deprecated first-party source is not eligible', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'qm-author-dep-'));
+    const registry = join(dir, 'sources.yaml');
+    writeFileSync(
+      registry,
+      `version: 1\nlibraryRoot: ${join(dir, 'library')}\nsources:\n  - id: old\n    class: first-party\n    path: ${join(dir, 'old')}\n    lifecycle: deprecated\n    trusted: true\n`,
+    );
+    expect(resolveAuthorRoot(registry)).toBeNull();
+  });
+
+  test('returns null when no eligible first-party source exists or target is missing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'qm-author-none-'));
+    const registry = join(dir, 'sources.yaml');
+    writeFileSync(
+      registry,
+      `version: 1\nlibraryRoot: ${join(dir, 'library')}\nsources:\n  - id: third\n    class: third-party\n    path: ${join(dir, 'tp')}\n    lifecycle: active\n    trusted: false\n`,
+    );
+    expect(resolveAuthorRoot(registry)).toBeNull();
   });
 });

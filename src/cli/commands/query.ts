@@ -18,8 +18,9 @@ export function queryCommand(args: ParsedArgs): OutputEnvelope {
   try {
     switch (sub) {
       case 'list':
-      case 'list-skills':
         return success('query', queryArtifacts(repo));
+      case 'list-skills':
+        return success('query', queryArtifacts(repo, { type: 'skill' }));
 
       case 'search': {
         const searchOpts: { text?: string; type?: string; capability?: string } = {};

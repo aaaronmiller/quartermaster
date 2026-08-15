@@ -74,6 +74,39 @@ const COMMANDS: Record<string, CommandSpec> = {
   web: { summary: 'Serve local web interface', fr: 'NFR-052', handler: webCommand },
 };
 
+/** Per-command usage hints surfaced by `qm <command> --help`. */
+const SUBCOMMANDS: Record<string, string[]> = {
+  scan: ['<root> [--incremental]'],
+  list: ['[--type <t>] [--capability <c>] [--source <id>] [--path <p>] [--text <q>]'],
+  search: ['<text>'],
+  import: ['<source> [--kind git|git_subdir|marketplace|local]'],
+  sync: ['--check (report only) | --confirm (apply)'],
+  pin: ['<artifact> <revision>'],
+  unpin: ['<artifact>'],
+  audit: ['override <artifact> <harness> --status --note', 'risk', 'safety <artifact>', 'threshold <n>', '(default) matrix'],
+  plan: ['recognized but not yet implemented — use `qm deploy` (dry-run by default)'],
+  deploy: ['<harness|group> [--scope <sel>] [--yes]', '--all [--scope <sel>] [--yes]'],
+  rollback: ['<deploy-id>'],
+  status: ['<harness>'],
+  profile: ['list', 'show <id>', 'add <file>', 'edit <file>', 'validate <file-or-id>'],
+  new: ['<type> <path> [--root <path>]', '(without --root, resolves the canonical first-party authoring root)'],
+  compose: ['validate <chain.json>'],
+  loadout: ['create', 'add', 'add-pipeline', 'remove', 'list', 'assign', 'copy', 'status'],
+  library: ['validate [registry]', 'prepare [registry] [--yes]', 'rollback <record>'],
+  pipeline: ['list', 'create', 'get', 'delete', 'validate', 'propose [--instruction ...]', 'templates'],
+  eval: ['config', 'grade <artifact> --categories <csv>', 'compare <a> <b> ...', 'investigate <artifact> --turns N'],
+  proposal: ['list', 'accept <id>', 'reject <id> <reason>', 'edit <id> <json>'],
+  propose: ['loadouts'],
+  guidance: ['<source-file> <harness> [--yes]'],
+  safety: ['allowlist', 'allow <kind> <id> --reason', 'threshold <n>', 'override <id> --note', 'audit <artifact>'],
+  allowlist: ['add', 'remove', 'list'],
+  query: ['list-skills', 'search --capability <c>', 'get <id>', 'audit <id>', 'status <harness>', 'related <id>', 'scaffold <type> <path>'],
+  mcp: ['status', 'serve'],
+  config: ['get <key>', 'set <key> <value>', 'list', 'path'],
+  tui: ['(launch terminal interface)'],
+  web: ['(serve local web interface)'],
+};
+
 function printVersion(json: boolean): void {
   if (json) console.log(JSON.stringify({ ok: true, command: 'version', data: { version: VERSION } }));
   else console.log(`quartermaster v${VERSION}`);
@@ -103,16 +136,51 @@ ${rows}
 Global flags:
   --help, -h       Show help
   --version, -v    Print version
-  --verbose        Detailed logging
   --json           Machine-readable JSON output
   --yes            Apply without interactive confirmation
 `);
 }
 
+function printCommandHelp(command: string, spec: CommandSpec, json: boolean): void {
+  const subs = SUBCOMMANDS[command];
+  if (json) {
+    console.log(
+      JSON.stringify({
+        ok: true,
+        command: 'help',
+        data: { command, summary: spec.summary, fr: spec.fr, subcommands: subs ?? [] },
+      }),
+    );
+    return;
+  }
+  const lines = [`\nQuartermaster — ${command}`, `\n  ${spec.summary}  [${spec.fr}]`, `\nUsage:\n  qm ${command} [options]`];
+  if (subs) {
+    lines.push(`  qm ${command} <subcommand> [options]\n\nSubcommands / forms:\n${subs.map((s) => `  ${s}`).join('\n')}`);
+  }
+  lines.push('\nGlobal flags:\n  --help, -h    Show this help\n  --json        Machine-readable JSON output\n  --yes         Apply without interactive confirmation');
+  console.log(lines.join('\n'));
+}
+
 async function main(): Promise<void> {
-  const parsed = parseArgs(process.argv.slice(2));
+  let parsed: ParsedArgs;
+  try {
+    parsed = parseArgs(process.argv.slice(2));
+  } catch (err) {
+    // Usage mistakes (e.g. a value flag without a value) are user errors,
+    // not internal failures: clean message, exit 2.
+    const reason = err instanceof Error ? err.message : String(err);
+    if (process.argv.includes('--json') || process.argv.includes('--json=true')) {
+      console.log(JSON.stringify(failure('', reason)));
+    } else {
+      console.error(`quartermaster: ${reason}`);
+    }
+    process.exit(EXIT.usage);
+  }
   const { command, flags } = parsed;
-  const json = flags.json === true;
+  // Accept boolean, `--json=true`, and `--json=1` forms uniformly.
+  const json = flags.json === true || flags.json === 'true' || flags.json === '1';
+
+  const spec = COMMANDS[command];
 
   // Global flags / no command.
   if (command === 'version' || flags.version) {
@@ -120,11 +188,13 @@ async function main(): Promise<void> {
     process.exit(EXIT.ok);
   }
   if (!command || command === 'help' || flags.help) {
-    printHelp(json);
+    if (spec) {
+      printCommandHelp(command, spec, json);
+    } else {
+      printHelp(json);
+    }
     process.exit(EXIT.ok);
   }
-
-  const spec = COMMANDS[command];
 
   // Unknown command → usage error.
   if (!spec) {
