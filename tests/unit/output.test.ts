@@ -154,3 +154,28 @@ describe('deployment/rollback human rendering', () => {
     expect(logs[0]).toContain('qm rollback <deployId>');
   });
 });
+
+describe('loadout human rendering', () => {
+  function capture(fn: () => void): string[] {
+    const logs: string[] = [];
+    const orig = console.log;
+    console.log = (s: string) => logs.push(s);
+    try { fn(); } finally { console.log = orig; }
+    return logs;
+  }
+
+  test('loadout lists summarize instead of dumping id arrays', () => {
+    const logs = capture(() => emit(success('loadout', { loadouts: [
+      { name: 'core', artifacts: ['a', 'b'], pipelines: [], harnesses: ['claude-code'], active: true },
+    ] }), false));
+    expect(logs[0]).toContain('1 loadout(s)');
+    expect(logs[0]).toContain('core');
+    expect(logs[0]).toContain('2 artifacts');
+    expect(logs[0]).not.toContain('"a"');
+  });
+
+  test('long key-value arrays collapse to counts', () => {
+    const logs = capture(() => emit(success('status', { activeArtifacts: Array(20).fill('art_x'), activeArtifactCount: 20 }), false));
+    expect(logs[0]).toContain('20 item(s) (use --json');
+  });
+});

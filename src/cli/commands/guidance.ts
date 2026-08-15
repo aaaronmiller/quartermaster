@@ -42,9 +42,10 @@ function renderHandler(args: ParsedArgs): OutputEnvelope {
 
   try {
     const sourcePath = typeof args.flags.source === 'string' ? args.flags.source : null;
-    const canonical = sourcePath
-      ? readFileSync(sourcePath, 'utf8')
-      : '# Default Guidance\n\nAdd your skills here.';
+    if (!sourcePath) {
+      return failure('guidance', 'usage: qm guidance render <harness> --source <file> [<target-path>]');
+    }
+    const canonical = readFileSync(sourcePath, 'utf8');
 
     // FR-121: prefer the directives of the harness's active loadout; fall back
     // to all defined pipelines when no loadout is active for the harness.

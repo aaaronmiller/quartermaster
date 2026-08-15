@@ -234,7 +234,7 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 | `qm audit risk` | Scan risk indicators (bundled scripts, network, secrets) |
 | `qm audit safety <id>` | Run registered safety auditors; persist findings |
 | `qm deploy <harness\|--all> [--scope=<selector>] [--project] [--yes]` | Global target and dry-run by default; use `--project` for project scope and `--yes` to apply |
-| `qm rollback <deployId>` | Reverse a recorded deployment |
+| `qm rollback [<deployId>]` | Reverse a recorded deployment; with no id, list recent deployments first |
 | `qm status <harness\|--all>` | Deployed artifacts, drift, and orphans |
 
 ### Loadouts, pipelines & guidance
@@ -271,13 +271,24 @@ Every command supports `--json` for machine-readable output and exits nonzero wi
 
 | Command | Description |
 |---------|-------------|
-| `qm query list-skills [--type=TYPE]` | List catalog artifacts |
+| `qm query list-skills` | List skill-typed artifacts (name,id ordered) |
 | `qm query search --capability=<cap>` | Search by runtime capability |
-| `qm query get <id>` | Retrieve artifact metadata |
-| `qm query audit <id>` | Per-harness audit verdicts |
+| `qm query get <ref>` | Resolve and retrieve one artifact; `<ref>` is an id (`art_...`), `skill://name`, an exact path, or a unique name |
+| `qm query audit <ref>` | Per-harness audit verdicts (same ref forms) |
+| `qm query related <ref>` | Related artifacts (same ref forms) |
 | `qm query scaffold <type> <path>` | Create an artifact stub |
 | `qm query status [<harness>]` | Deployed state |
-| `qm mcp status \| serve` | Opt-in JSON-RPC 2.0 MCP server (off by default) |
+| `qm mcp status \| serve` | Opt-in JSON-RPC 2.0 MCP server (off by default; same ref resolution as the CLI) |
+
+Ambiguous names fail deterministically with the candidate ids listed — never a silent pick.
+
+### Other commands
+
+| Command | Description |
+|---------|-------------|
+| `qm allowlist add/remove/list` | Trusted sources/plugins/skills exempt from repeat auditing (same as `qm safety allowlist`) |
+| `qm plan` | Recognized but not yet implemented — use `qm deploy` (dry-run by default) for plan previews |
+| `qm help` | Show this help |
 
 ### Config
 

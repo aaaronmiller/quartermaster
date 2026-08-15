@@ -203,6 +203,50 @@ function renderHuman(data: unknown): string {
     return `${o.profiles.length} profile(s):\n${rows.join('\n')}`;
   }
 
+  // Loadout lists: { loadouts: [{name, harnesses, artifacts, pipelines, active}] }.
+  if (Array.isArray(o.loadouts)) {
+    const rows = (o.loadouts as Array<Record<string, unknown>>).map((l) => {
+      const artifacts = Array.isArray(l.artifacts) ? l.artifacts.length : 0;
+      const pipelines = Array.isArray(l.pipelines) ? l.pipelines.length : 0;
+      const harnesses = Array.isArray(l.harnesses) ? l.harnesses.length : 0;
+      const active = l.active === true ? 'active' : 'inactive';
+      return `  ${String(l.name ?? '?').padEnd(28)} ${String(artifacts).padStart(4)} artifacts, ${String(pipelines).padStart(3)} pipelines, ${String(harnesses).padStart(2)} harnesses  [${active}]`;
+    });
+    return `${o.loadouts.length} loadout(s):\n${rows.join('\n')}`;
+  }
+
+  // Single loadout: { loadout: { name, artifacts, pipelines, ... } }.
+  if (o.loadout && typeof o.loadout === 'object') {
+    const l = o.loadout as Record<string, unknown>;
+    const artifacts = Array.isArray(l.artifacts) ? l.artifacts.length : 0;
+    const pipelines = Array.isArray(l.pipelines) ? l.pipelines.length : 0;
+    const active = l.active === true ? ' (active)' : '';
+    return `loadout '${String(l.name ?? '?')}': ${artifacts} artifacts, ${pipelines} pipelines${active}`;
+  }
+
+  // Rendered guidance preview: { rendered: { content, sections } }.
+  if (o.rendered && typeof o.rendered === 'object') {
+    const r = o.rendered as Record<string, unknown>;
+    if (typeof r.content === 'string') {
+      const sections = Array.isArray(r.sections) ? r.sections.length : 0;
+      return `rendered guidance (${sections} managed section(s)):\n${r.content}`;
+    }
+  }
+
+  // Sync/currency report: { unchanged, ahead, updated, conflicts, pinned, errors }.
+  if (Array.isArray(o.unchanged) && Array.isArray(o.conflicts)) {
+    const counts = (k: string) => (Array.isArray(o[k]) ? (o[k] as unknown[]).length : 0);
+    const summary = `${counts('unchanged')} unchanged, ${counts('ahead')} ahead, ${counts('updated')} updated, ${counts('conflicts')} conflicts, ${counts('pinned')} pinned, ${counts('errors')} errors`;
+    const sections: string[] = [];
+    for (const key of ['ahead', 'updated', 'conflicts', 'pinned', 'errors'] as const) {
+      const arr = (o[key] ?? []) as unknown[];
+      if (arr.length > 0) {
+        sections.push(`  ${key}: ${arr.length} — ${JSON.stringify(arr.slice(0, 5))}${arr.length > 5 ? ' …' : ''}`);
+      }
+    }
+    return sections.length > 0 ? `${summary}\n${sections.join('\n')}` : summary;
+  }
+
   return renderKV(o);
 }
 
@@ -210,8 +254,13 @@ function renderKV(o: Record<string, unknown>): string {
   const lines: string[] = [];
   for (const [key, value] of Object.entries(o)) {
     if (value === undefined || value === null) continue;
-    if (typeof value === 'object') lines.push(`${key}: ${JSON.stringify(value)}`);
-    else lines.push(`${key}: ${String(value)}`);
+    if (Array.isArray(value)) {
+      lines.push(value.length > 8 ? `${key}: ${value.length} item(s) (use --json for the full list)` : `${key}: ${JSON.stringify(value)}`);
+    } else if (typeof value === 'object') {
+      lines.push(`${key}: ${JSON.stringify(value)}`);
+    } else {
+      lines.push(`${key}: ${String(value)}`);
+    }
   }
   return lines.join('\n');
 }
