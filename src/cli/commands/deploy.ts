@@ -154,10 +154,25 @@ function resolveTargets(
 
 export async function rollbackCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   const recordId = args.positional[0];
-  if (!recordId) return failure('rollback', 'usage: qm rollback <deployId>');
   const cfg = loadConfig();
   const repo = new Repository({ dbPath: cfg.dbPath });
   try {
+    if (!recordId) {
+      const deployments = repo.listDeployments();
+      if (deployments.length === 0) {
+        return failure('rollback', 'no deployments recorded. Usage: qm rollback <deployId>');
+      }
+      return success('rollback', {
+        usage: 'qm rollback <deployId>',
+        deployments: deployments.map((d) => ({
+          id: d.id,
+          harness: d.harness,
+          timestamp: d.timestamp,
+          status: d.status,
+          operations: d.plan.operations.length,
+        })),
+      });
+    }
     const record = await rollbackDeployment(recordId, repo);
     return success('rollback', { record });
   } finally {

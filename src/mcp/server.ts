@@ -14,6 +14,7 @@ import {
   queryCompatibility,
   queryDeployment,
   querySearch,
+  resolveArtifactRef,
   scaffoldArtifact,
 } from '@core/query/commands';
 import type { ArtifactType } from '@core/types';
@@ -105,14 +106,17 @@ export function dispatchTool(repo: Repository, name: string, args: Record<string
       return querySearch(repo, opts);
     }
     case 'get': {
-      if (typeof args.id !== 'string') throw new McpToolError('get requires string "id"');
-      const artifact = queryArtifact(repo, args.id);
-      if (!artifact) throw new McpToolError(`artifact not found: ${args.id}`);
+      if (typeof args.id !== 'string') throw new McpToolError('get requires string "id" (id, skill://name, path, or name)');
+      const resolved = resolveArtifactRef(repo, args.id);
+      if ('error' in resolved) throw new McpToolError(resolved.error);
+      const artifact = queryArtifact(repo, resolved.artifact.id);
       return { artifact };
     }
     case 'audit': {
-      if (typeof args.id !== 'string') throw new McpToolError('audit requires string "id"');
-      const compatibility = queryCompatibility(repo, args.id);
+      if (typeof args.id !== 'string') throw new McpToolError('audit requires string "id" (id, skill://name, path, or name)');
+      const resolved = resolveArtifactRef(repo, args.id);
+      if ('error' in resolved) throw new McpToolError(resolved.error);
+      const compatibility = queryCompatibility(repo, resolved.artifact.id);
       if (!compatibility) throw new McpToolError(`artifact not found: ${args.id}`);
       return compatibility;
     }

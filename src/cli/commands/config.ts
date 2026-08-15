@@ -12,6 +12,21 @@ import type { ParsedArgs } from '../output';
 
 const PROJECT_FILE = 'quartermaster.json';
 
+/** Top-level config keys settable via `qm config set` (dotted paths allowed under these). */
+const KNOWN_CONFIG_KEYS: Record<string, true> = {
+  roots: true,
+  dbPath: true,
+  profileDir: true,
+  sourceRegistry: true,
+  harnesses: true,
+  harnessGroups: true,
+  safety: true,
+  eval: true,
+  mcp: true,
+  composition: true,
+  deployment: true,
+};
+
 function getPath(obj: unknown, dotted: string): unknown {
   return dotted.split('.').reduce<unknown>((acc, key) => {
     if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[key];
@@ -60,11 +75,17 @@ export function configCommand(args: ParsedArgs): OutputEnvelope {
         if (!key) return failure('config', 'usage: qm config get <key>');
         const resolved = loadConfig();
         const found = getPath(resolved, key);
-        if (found === undefined) return failure('config', `no config key '${key}'`);
+        if (found === undefined) {
+          return failure('config', `no config key '${key}'. Run \`qm config list\` for available keys.`);
+        }
         return success('config', redactSecrets({ [key]: found }));
       }
       case 'set': {
         if (!key || value === undefined) return failure('config', 'usage: qm config set <key> <value>');
+        const topKey = key.split('.')[0] ?? '';
+        if (!KNOWN_CONFIG_KEYS[topKey]) {
+          return failure('config', `usage: unknown config key '${key}'. Run \`qm config list\` for available keys.`);
+        }
         const existedBefore = existsSync(projectPath);
         const previousRaw = existedBefore ? readFileSync(projectPath, 'utf8') : null;
         const current = previousRaw

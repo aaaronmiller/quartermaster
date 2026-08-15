@@ -46,7 +46,9 @@ function add(map: Map<string, ArtifactRelationshipSuggestion>, artifactId: strin
 }
 
 function resolveArtifact(artifacts: Artifact[], identity: string): Artifact | undefined {
-  return artifacts.find((artifact) => artifact.id === identity || artifact.name === identity);
+  const matches = artifacts.filter((artifact) => artifact.id === identity || artifact.name === identity);
+  // Never pick an arbitrary match: ambiguous references resolve to nothing.
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function stringList(value: unknown): string[] {

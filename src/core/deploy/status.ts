@@ -13,7 +13,10 @@ import { basename, join } from 'path';
 
 // ─── Ignored filenames ───────────────────────────────────────
 
-const IGNORE_BASENAMES = new Set(['.DS_Store', 'Thumbs.db', '.gitkeep']);
+// Trees that are package-managed or otherwise not a qm deployment surface.
+// Walking them (e.g. a plugin cache with node_modules symlink loops) would
+// hang the orphan scan and flood it with noise.
+const IGNORE_BASENAMES = new Set(['.DS_Store', 'Thumbs.db', '.gitkeep', 'node_modules', '.git', 'cache']);
 
 // ─── Public interfaces ───────────────────────────────────────
 
@@ -169,6 +172,9 @@ async function findOrphanedFiles(
 /**
  * Recursively walk a directory, collecting files not in `accountedPaths`.
  * Silently returns on ENOENT (missing directory).
+ * Uses lstat: symlinks are treated as leaves and never descended into,
+ * which prevents infinite recursion through symlink loops (e.g. node_modules
+ * under a plugin cache) that fs.stat would follow.
  */
 async function walkDir(
   dirPath: string,
@@ -187,16 +193,16 @@ async function walkDir(
     if (IGNORE_BASENAMES.has(name)) continue;
 
     const fullPath = join(dirPath, name);
-    let stat: Awaited<ReturnType<typeof fs.stat>>;
+    let stat: Awaited<ReturnType<typeof fs.lstat>>;
     try {
-      stat = await fs.stat(fullPath);
+      stat = await fs.lstat(fullPath);
     } catch {
       continue;
     }
 
     if (stat.isDirectory()) {
       await walkDir(fullPath, accountedPaths, orphaned);
-    } else if (stat.isFile()) {
+    } else if (stat.isFile() || stat.isSymbolicLink()) {
       if (!accountedPaths.has(fullPath)) {
         orphaned.push(fullPath);
       }

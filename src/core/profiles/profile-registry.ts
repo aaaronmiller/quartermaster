@@ -148,6 +148,8 @@ function skillOnlyProfile(
   };
 }
 
+export const BUILTIN_PROFILE_IDS: readonly string[] = BUILTIN_PROFILES.map((p) => p.id);
+
 export class ProfileRegistry {
   private profiles = new Map<string, HarnessProfile>();
 

@@ -30,7 +30,9 @@ export async function evalCommand(args: ParsedArgs): Promise<OutputEnvelope> {
     if (sub === 'compare') {
       const ids = args.positional.slice(1);
       const artifacts = ids.map((id) => repo.getArtifact(id));
-      if (artifacts.some((artifact) => artifact === null)) return failure('eval', 'one or more artifacts not found');
+      if (artifacts.some((artifact) => artifact === null)) {
+        return failure('eval', 'one or more artifacts not found. Run `qm query list` to see available artifacts.');
+      }
       return success('eval', await compareArtifacts(artifacts.filter((artifact) => artifact !== null), cfg));
     }
     if (sub === 'investigate') {

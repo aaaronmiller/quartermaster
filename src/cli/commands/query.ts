@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { loadConfig } from '@core/config/load';
-import { queryArtifacts, queryArtifact, queryCompatibility, queryDeployment, queryRelated, querySearch, scaffoldArtifact } from '@core/query/commands';
+import { queryArtifacts, queryArtifact, queryCompatibility, queryDeployment, queryRelated, querySearch, resolveArtifactRef, scaffoldArtifact } from '@core/query/commands';
 import type { ArtifactType } from '@core/types';
 import { Repository } from '@storage/repository';
 import { type OutputEnvelope, failure, success } from '../output';
@@ -31,15 +31,17 @@ export function queryCommand(args: ParsedArgs): OutputEnvelope {
       }
 
       case 'get': {
-        if (!id) return failure('query', 'usage: qm query get <artifact-id>');
-        const artifact = queryArtifact(repo, id);
-        if (!artifact) return failure('query', `artifact not found: ${id}`);
-        return success('query', { artifact });
+        if (!id) return failure('query', 'usage: qm query get <ref>  (id, skill://name, path, or name)');
+        const resolved = resolveArtifactRef(repo, id);
+        if ('error' in resolved) return failure('query', resolved.error);
+        return success('query', { artifact: queryArtifact(repo, resolved.artifact.id) });
       }
 
       case 'audit': {
-        if (!id) return failure('query', 'usage: qm query audit <artifact-id>');
-        const compatibility = queryCompatibility(repo, id);
+        if (!id) return failure('query', 'usage: qm query audit <ref>  (id, skill://name, path, or name)');
+        const resolved = resolveArtifactRef(repo, id);
+        if ('error' in resolved) return failure('query', resolved.error);
+        const compatibility = queryCompatibility(repo, resolved.artifact.id);
         if (!compatibility) return failure('query', `artifact not found: ${id}`);
         return success('query', compatibility);
       }
@@ -50,8 +52,11 @@ export function queryCommand(args: ParsedArgs): OutputEnvelope {
       }
 
       case 'related': {
-        if (!id) return failure('query', 'usage: qm query related <artifact-id>');
-        return success('query', { artifactId: id, relationships: queryRelated(repo, id) });
+        if (!id) return failure('query', 'usage: qm query related <ref>  (id, skill://name, path, or name)');
+        const resolved = resolveArtifactRef(repo, id);
+        if ('error' in resolved) return failure('query', resolved.error);
+        const artifactId = resolved.artifact.id;
+        return success('query', { artifactId, relationships: queryRelated(repo, artifactId) });
       }
 
       case 'scaffold':
