@@ -31,7 +31,7 @@ export interface McpTool {
 export const MCP_TOOLS: McpTool[] = [
   {
     name: 'list_skills',
-    description: 'List every catalog artifact with stable machine-readable fields.',
+    description: 'List skill-typed catalog artifacts ordered by name, then id.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -49,7 +49,7 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: 'get',
-    description: 'Retrieve metadata for a single artifact by id.',
+    description: 'Resolve and retrieve one artifact. id accepts an internal id (art_...), skill://name, an exact path, or a unique bare name. Ambiguous names fail with candidate ids.',
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'string' } },

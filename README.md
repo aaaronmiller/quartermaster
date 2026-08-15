@@ -434,6 +434,8 @@ QM_MCP_ENABLED=true qm mcp serve
 - **Deterministic core**: cataloging, audit, deploy, status, rollback, config, and safety are deterministic and testable. Provider selection is configurable via the gateway.
 - **Provenance first**: every imported artifact records source kind, revision, importedHash, and trusted pin state before any deployment decision.
 
+Agent and script consumers: read [docs/agent-interface.md](docs/agent-interface.md) — the stable envelope, exit-code, ref-resolution, and ordering contract.
+
 ## Development
 
 ```bash

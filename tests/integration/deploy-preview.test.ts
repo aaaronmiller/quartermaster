@@ -105,7 +105,7 @@ test('skill packages deploy every member under one globally scoped skill directo
   expect(readFileSync(join(targetDir, 'imagegen', 'scripts', 'generate.py'), 'utf8')).toBe('print("image")\n');
 });
 
-test('deployment planning fails closed when packages resolve to the same target', () => {
+test('deployment planning reports-and-skips packages that resolve to the same target', () => {
   const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
   const first = artifact({
     id: 'first',
@@ -122,9 +122,17 @@ test('deployment planning fails closed when packages resolve to the same target'
   const artifacts = [first, second];
   const matrix = computeCompatibilityMatrix(artifacts, [codex]);
 
-  expect(() => compilePlan(artifacts, matrix.map((row) => row[0]!), codex)).toThrow(
-    'deployment target collision',
+  // Spike T105a decision 2: report-and-skip beats silent overwrite AND beats
+  // aborting the whole plan. The plan must succeed with both colliding
+  // artifacts excluded and a plain-language reason (NFR-050).
+  const plan = compilePlan(artifacts, matrix.map((row) => row[0]!), codex);
+  expect(plan.operations).toHaveLength(0);
+  expect(plan.excluded.map((e) => e.artifact)).toEqual(
+    expect.arrayContaining(['first', 'second']),
   );
+  for (const entry of plan.excluded) {
+    expect(entry.reason).toContain('collision');
+  }
 });
 
 test('deployment plan surfaces provenance and risk flags before deploy', () => {
@@ -361,9 +369,12 @@ test('qm deploy supports configured groups and --all targets', () => {
   repo.close();
 
   const cli = join(process.cwd(), 'src/cli/index.ts');
+  const env = { ...process.env, QM_DB_PATH: dbPath };
   const groupOut = execFileSync('bun', [cli, 'deploy', 'pair', '--json'], {
     cwd: projectDir,
     encoding: 'utf8',
+    env,
+    maxBuffer: 20 * 1024 * 1024,
   });
   const group = JSON.parse(groupOut) as { data: { plans: unknown[] } };
   expect(group.data.plans).toHaveLength(2);
@@ -371,6 +382,8 @@ test('qm deploy supports configured groups and --all targets', () => {
   const allOut = execFileSync('bun', [cli, 'deploy', '--all', '--yes', '--json'], {
     cwd: projectDir,
     encoding: 'utf8',
+    env,
+    maxBuffer: 20 * 1024 * 1024,
   });
   const all = JSON.parse(allOut) as { ok: boolean; data: { deployments: unknown[] } };
   expect(all.ok).toBe(true);

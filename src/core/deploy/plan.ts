@@ -5,9 +5,10 @@
 // ─────────────────────────────────────────────────────────────
 
 import { homedir } from 'node:os';
-import { basename, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import type { VerdictResult } from '@core/audit/auditor';
 import type { Artifact, DeploymentOperation, DeploymentPlan, HarnessProfile } from '@core/types';
+import { flattenOperations } from './flatten';
 
 export interface PlanOptions {
   scope?: Artifact[] | PlanScope;
@@ -112,13 +113,56 @@ export function compilePlan(
     operations.push(operation);
   }
 
-  assertUniqueTargets(operations);
+  // Apply the flatten transform's collision-safe naming at plan time
+  // (spike T105a decision 1: deterministic path-derived names). Without this,
+  // same-basename nested artifacts all map to the same pre-transform target
+  // and the uniqueness check would reject a plan the transform could resolve.
+  const flattenOps = operations.filter((op) => op.transform === 'flatten');
+  if (flattenOps.length > 0) {
+    const flattened = flattenOperations(flattenOps);
+    const nameBySource = new Map(flattened.operations.map((op) => [op.sourcePath, basename(op.targetPath)]));
+    for (const op of operations) {
+      const flatName = nameBySource.get(op.sourcePath);
+      if (flatName) op.targetPath = join(dirname(op.targetPath), flatName);
+    }
+  }
+
+  // Report-and-skip beats silent overwrite and beats aborting the whole plan:
+  // artifacts that still collide are excluded with a reason (spike T105a
+  // decision 2, NFR-050), and every non-colliding placement proceeds.
+  dropCollisions(operations, excluded);
 
   return {
     harness: profile.id,
     operations,
     excluded,
   };
+}
+
+function dropCollisions(
+  operations: DeploymentOperation[],
+  excluded: Array<{ artifact: string; reason: string }>,
+): void {
+  const sourcesByTarget = new Map<string, string[]>();
+  for (const operation of operations) {
+    const sources = sourcesByTarget.get(operation.targetPath) ?? [];
+    sources.push(operation.sourcePath);
+    sourcesByTarget.set(operation.targetPath, sources);
+  }
+  for (const [target, sources] of sourcesByTarget) {
+    if (sources.length < 2) continue;
+    for (const source of sources) {
+      const index = operations.findIndex((op) => op.sourcePath === source && op.targetPath === target);
+      if (index < 0) continue;
+      const colliding = operations[index];
+      if (!colliding) continue;
+      excluded.push({
+        artifact: colliding.artifactId ?? colliding.sourcePath,
+        reason: `flatten collision at ${target} (sources: ${sources.join(', ')}) — skipped; rename the artifact or scope the deploy`,
+      });
+      operations.splice(index, 1);
+    }
+  }
 }
 
 export function resolveTargetDirectory(
@@ -151,19 +195,6 @@ function makeOperation(
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function assertUniqueTargets(operations: DeploymentOperation[]): void {
-  const sourcesByTarget = new Map<string, string[]>();
-  for (const operation of operations) {
-    const sources = sourcesByTarget.get(operation.targetPath) ?? [];
-    sources.push(operation.sourcePath);
-    sourcesByTarget.set(operation.targetPath, sources);
-  }
-  const collisions = Array.from(sourcesByTarget.entries()).filter(([, sources]) => sources.length > 1);
-  if (collisions.length === 0) return;
-  const details = collisions.map(([target, sources]) => `${target}: ${sources.join(', ')}`).join('; ');
-  throw new DeployError(`deployment target collision: ${details}`);
 }
 
 function artifactInScope(artifact: Artifact, scope: Artifact[] | PlanScope): boolean {

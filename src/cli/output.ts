@@ -200,7 +200,7 @@ function renderHuman(data: unknown): string {
     const rows = (o.profiles as Array<Record<string, unknown>>).map(
       (p) => `  ${String(p.id).padEnd(18)} ${String(p.name ?? p.id).padEnd(20)} ${String(p.guidanceFilename ?? '')}`,
     );
-    return `${o.profiles.length} profile(s):\n${rows.join('\n')}`;
+    return rows.length > 0 ? `${o.profiles.length} profile(s):\n${rows.join('\n')}` : '0 profiles';
   }
 
   // Loadout lists: { loadouts: [{name, harnesses, artifacts, pipelines, active}] }.
@@ -212,7 +212,7 @@ function renderHuman(data: unknown): string {
       const active = l.active === true ? 'active' : 'inactive';
       return `  ${String(l.name ?? '?').padEnd(28)} ${String(artifacts).padStart(4)} artifacts, ${String(pipelines).padStart(3)} pipelines, ${String(harnesses).padStart(2)} harnesses  [${active}]`;
     });
-    return `${o.loadouts.length} loadout(s):\n${rows.join('\n')}`;
+    return rows.length > 0 ? `${o.loadouts.length} loadout(s):\n${rows.join('\n')}` : '0 loadouts';
   }
 
   // Single loadout: { loadout: { name, artifacts, pipelines, ... } }.
