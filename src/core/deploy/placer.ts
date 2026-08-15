@@ -56,8 +56,9 @@ export async function executePlacement(
           if (process.env.QUARTERMASTER_FORCE_COPY_FALLBACK === '1') {
             throw Object.assign(new Error('forced symlink fallback'), { code: 'EPERM' });
           }
-          // Remove existing if present
-          if (existsSync(op.targetPath)) {
+          // Remove existing if present (lstat: a dangling symlink is real
+          // prior state and must be replaced, not skipped)
+          if (await pathExists(op.targetPath)) {
             await fs.unlink(op.targetPath);
           }
           await fs.symlink(op.sourcePath, op.targetPath);
@@ -73,6 +74,11 @@ export async function executePlacement(
       } else {
         // copyFile with COPYFILE_FICLONE (reflink attempt, fall back to stream)
         try {
+          // Remove an existing target first (lstat-based) so a stale copy or
+          // dangling symlink is replaced instead of failing with EEXIST.
+          if (await pathExists(op.targetPath)) {
+            await fs.unlink(op.targetPath);
+          }
           await fs.copyFile(op.sourcePath, op.targetPath, fs.constants.COPYFILE_FICLONE);
         } catch {
           // Fall back to regular copy
@@ -127,6 +133,15 @@ async function targetMatchesOperation(op: DeploymentOperation): Promise<boolean>
 }
 
 // ─── Prior State ────────────────────────────────────────────
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await fs.lstat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function capturePriorState(
   targetPath: string,

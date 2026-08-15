@@ -14,7 +14,7 @@ artifactTypes:
     configFormat: json
 capabilities:
   - type: skill
-    dialects: [skill-md]
+    dialects: [agent-md]
   - type: mcp
     dialects: [single-server]
 deployment:

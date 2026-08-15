@@ -14,7 +14,7 @@ artifactTypes:
     configFormat: ts
 capabilities:
   - type: skill
-    dialects: [skill-md]
+    dialects: [agent-md]
   - type: plugin
     dialects: [typescript]
 deployment:
