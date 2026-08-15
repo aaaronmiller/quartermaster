@@ -47,8 +47,7 @@ export function pinCommand(args: ParsedArgs): OutputEnvelope {
     };
     repo.upsertArtifact(pinned);
     return success('pin', { artifact: artifact.id, pinnedRevision: revision });
-  } finally {
-    repo.close();
+  } finally {    repo.close();
   }
 }
 
@@ -68,7 +67,7 @@ export function unpinCommand(args: ParsedArgs): OutputEnvelope {
       updatedAt: new Date().toISOString(),
     };
     repo.upsertArtifact(unpinned);
-    return success('unpin', { artifact: artifact.id });
+    return success('unpin', { artifact: artifact.id, unpinned: true });
   } finally {
     repo.close();
   }

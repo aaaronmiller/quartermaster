@@ -247,6 +247,28 @@ function renderHuman(data: unknown): string {
     return sections.length > 0 ? `${summary}\n${sections.join('\n')}` : summary;
   }
 
+  // Audit matrix: { artifacts, harnesses, summary: {deployable, transform, incompatible, total}, matrix }.
+  if (o.summary && typeof o.summary === 'object' && Array.isArray(o.matrix)) {
+    const s = o.summary as Record<string, unknown>;
+    const harnesses = Array.isArray(o.harnesses) ? o.harnesses.length : 0;
+    return `audit: ${String(s.deployable ?? 0)} deployable, ${String(s.transform ?? 0)} transform, ${String(s.incompatible ?? 0)} incompatible (${String(s.total ?? '?')} cells across ${harnesses} harnesses, ${String(o.artifacts ?? 0)} artifacts)`;
+  }
+
+  // Proposal lists: { proposals: [{id, type, status, rationale, createdAt}] }.
+  if (Array.isArray(o.proposals)) {
+    const rows = (o.proposals as Array<Record<string, unknown>>).map((p) => {
+      const rationale = typeof p.rationale === 'string' ? p.rationale.slice(0, 60) : '';
+      return `  ${String(p.id).padEnd(40)} ${String(p.type).padEnd(10)} ${String(p.status).padEnd(9)} ${rationale}`;
+    });
+    return `${o.proposals.length} proposal(s):\n${rows.join('\n') || '  (none)'}`;
+  }
+
+  // Pin/unpin confirmation: { artifact, pinnedRevision? | unpinned? }.
+  if (typeof o.artifact === 'string' && (o.pinnedRevision !== undefined || o.unpinned === true)) {
+    if (o.pinnedRevision !== undefined) return `pinned ${o.artifact} to ${String(o.pinnedRevision)}`;
+    return `unpinned ${o.artifact}`;
+  }
+
   return renderKV(o);
 }
 
@@ -295,14 +317,25 @@ function renderStatus(o: Record<string, unknown>): string {
   const deployed = (o.deployed ?? []) as Array<Record<string, unknown>>;
   const orphaned = (o.orphaned ?? []) as Array<Record<string, unknown>>;
   const lines: string[] = [];
-  for (const d of deployed) {
+  const cap = (list: unknown[], item: (v: Record<string, unknown>, i: number) => string) => {
+    const out: string[] = [];
+    for (let i = 0; i < list.length; i++) {
+      if (out.length >= 12) {
+        out.push(`  … and ${list.length - out.length} more (use --json for all)`);
+        break;
+      }
+      out.push(item(list[i] as Record<string, unknown>, i));
+    }
+    return out;
+  };
+  for (const d of cap(deployed, (d) => {
     const sync = d.inSync === true ? 'in-sync' : 'drifted';
-    lines.push(`  ${sync === 'in-sync' ? 'ok' : '!!'} ${String(d.artifactId ?? '?')} -> ${String(d.targetPath)} (${String(d.method ?? '')}) [${sync}]`);
-  }
-  for (const or of orphaned) {
+    return `  ${sync === 'in-sync' ? 'ok' : '!!'} ${String(d.artifactId ?? '?')} -> ${String(d.targetPath)} (${String(d.method ?? '')}) [${sync}]`;
+  })) lines.push(d);
+  for (const or of cap(orphaned, (or) => {
     const path = typeof or === 'string' ? or : String((or as Record<string, unknown>).path ?? (or as Record<string, unknown>).targetPath ?? '?');
-    lines.push(`  ?? orphaned: ${path}`);
-  }
+    return `  ?? orphaned: ${path}`;
+  })) lines.push(or);
   if (lines.length === 0) return 'nothing deployed (no applied deployment recorded)';
   return `${deployed.length} deployed, ${orphaned.length} orphaned:\n${lines.join('\n')}`;
 }

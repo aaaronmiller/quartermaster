@@ -17,7 +17,7 @@ type ImportKind = ArtifactSource['kind'];
 
 export async function importCommand(args: ParsedArgs): Promise<OutputEnvelope> {
   const raw = args.positional[0];
-  if (!raw) return failure('import', 'missing source. Usage: qm import <source> [--kind=...]');
+  if (!raw) return failure('import', 'missing source. Usage: qm import <source> [--kind=git|github|git_subdir|marketplace|local] [--ref=<rev>] [--subdir=<path>]');
 
   const cfg = loadConfig();
   const targetDir = typeof args.flags.target === 'string' ? args.flags.target : cfg.roots[0];
@@ -72,6 +72,14 @@ function detectSource(
   if (existsSync(raw)) return { ok: true, source: { kind: 'local', path: raw } };
   if (/\.git($|#)/.test(raw) || raw.startsWith('git@') || raw.startsWith('ssh://')) {
     return { ok: true, source: { kind: 'git', url: raw, ref } };
+  }
+  // A local-looking path that does not exist would otherwise fall through to a
+  // confusing marketplace URL parse error. Fail early with the remedy.
+  if (raw.startsWith('/') || raw.startsWith('./') || raw.startsWith('../')) {
+    return {
+      ok: false,
+      reason: `source not found: ${raw}. For a local directory pass an existing path (--kind=local); for git/github/marketplace use a URL.`,
+    };
   }
   return { ok: true, source: { kind: 'marketplace', url: raw } };
 }

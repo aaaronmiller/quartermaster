@@ -24,7 +24,7 @@ export async function pipelineCommand(args: ParsedArgs): Promise<OutputEnvelope>
         return success('pipeline', { pipelines: repo.queryRaw('SELECT name, artifacts, directives FROM pipelines') });
 
       case 'create': {
-        if (!name) return failure('pipeline', 'usage: qm pipeline create <name> <artifact-id>...');
+        if (!name) return failure('pipeline', 'usage: qm pipeline create <name> <artifact-id>...  (find ids via `qm query list`)');
         const artifacts = args.positional.slice(2);
         const pipeline: PipelineDefinition = {
           name,
