@@ -57,3 +57,6 @@ src/web/public/
 !profiles/opencode.yaml
 !profiles/antigravity-cli.yaml
 !profiles/example.yaml
+
+# Local project config (user-specific)
+quartermaster.json
