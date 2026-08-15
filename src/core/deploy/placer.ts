@@ -128,13 +128,11 @@ async function targetMatchesOperation(op: DeploymentOperation): Promise<boolean>
 
 // ─── Prior State ────────────────────────────────────────────
 
-async function capturePriorState(
+export async function capturePriorState(
   targetPath: string,
 ): Promise<NonNullable<DeploymentOperation['priorState']>> {
-  if (!existsSync(targetPath)) {
-    return { kind: 'missing' };
-  }
-
+  // lstat, not existsSync: a dangling symlink is real prior state and must be
+  // restored as a symlink, not recorded as missing (which would delete it).
   try {
     const stat = await fs.lstat(targetPath);
     if (stat.isSymbolicLink()) {
@@ -148,7 +146,6 @@ async function capturePriorState(
     return {
       kind: 'file',
       content,
-      contentHash: createHash('sha256').update(content).digest('hex'),
       permissions: stat.mode,
     };
   } catch {
@@ -160,9 +157,21 @@ export async function restorePriorState(
   op: DeploymentOperation,
   priorState: DeploymentOperation['priorState'] | undefined,
 ): Promise<void> {
+  // Remove the target even when it is a dangling symlink: existsSync follows
+  // symlinks, so a link whose target is missing reports false and would be
+  // left behind. lstat sees the link itself.
+  const targetExists = async (path: string): Promise<boolean> => {
+    try {
+      await fs.lstat(path);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   if (!priorState || priorState.kind === 'missing') {
     try {
-      if (existsSync(op.targetPath)) {
+      if (await targetExists(op.targetPath)) {
         await fs.unlink(op.targetPath);
       }
     } catch {
@@ -172,7 +181,7 @@ export async function restorePriorState(
   }
 
   await fs.mkdir(dirname(op.targetPath), { recursive: true });
-  if (existsSync(op.targetPath)) await fs.unlink(op.targetPath);
+  if (await targetExists(op.targetPath)) await fs.unlink(op.targetPath);
   if (priorState.kind === 'symlink') {
     if (!priorState.symlinkTarget) return;
     await fs.symlink(priorState.symlinkTarget, op.targetPath);

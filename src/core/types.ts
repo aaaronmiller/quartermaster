@@ -233,6 +233,8 @@ export interface DeploymentPlan {
   operations: DeploymentOperation[];
   /** Artifacts excluded from deployment with reasons. */
   excluded: Array<{ artifact: string; reason: string }>;
+  /** Guidance files written outside placement ops, journaled for rollback. */
+  guidance?: Array<{ path: string; priorState: DeploymentOperation['priorState'] }>;
 }
 
 export type DeploymentStatus = 'applied' | 'rolled-back' | 'failed';

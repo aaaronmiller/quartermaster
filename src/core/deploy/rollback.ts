@@ -38,6 +38,16 @@ export async function rollbackDeployment(
     }, MAX_RETRIES);
   }
 
+  // Restore journaled guidance files (written outside placement ops).
+  for (const entry of record.plan.guidance ?? []) {
+    await retryOnError(async () => {
+      await restorePriorState(
+        { artifactId: 'guidance', sourcePath: entry.path, targetPath: entry.path, method: 'copy' },
+        entry.priorState,
+      );
+    }, MAX_RETRIES);
+  }
+
   // Record the rollback
   const rollbackRecord = createRecord(record.plan, 'rolled-back');
   repo.recordDeployment(rollbackRecord);

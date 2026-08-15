@@ -14,7 +14,7 @@ import {
 } from '@core/deploy/plan';
 import type { Artifact } from '@core/types';
 import { computeSafetyScore } from '@core/safety/findings';
-import { executePlacement } from '@core/deploy/placer';
+import { capturePriorState, executePlacement } from '@core/deploy/placer';
 import { createRecord, storeRecord } from '@core/deploy/records';
 import { rollbackDeployment } from '@core/deploy/rollback';
 import { renderGuidance, harnessGuidanceFilename } from '@core/guidance/render';
@@ -85,7 +85,10 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
             existingFile,
           });
           const guidancePath = join(guidanceRoot, harnessGuidanceFilename(profile.id));
+          // Journal the guidance write so rollback restores it too.
+          const guidancePrior = await capturePriorState(guidancePath);
           writeFileSync(guidancePath, rendered.content);
+          plan.guidance = [...(plan.guidance ?? []), { path: guidancePath, priorState: guidancePrior }];
         }
         const record = createRecord(
           plan,
