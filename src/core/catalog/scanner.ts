@@ -22,7 +22,7 @@ export interface ScannerOptions {
   skipPatterns?: string[];
 }
 
-const DEFAULT_SKIP = ['.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build', '.gemini-images'];
+const DEFAULT_SKIP = ['.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build', '.gemini-images', 'tests', 'test', 'fixtures', '__tests__', '__snapshots__'];
 
 const VISITED_INODES = new Set<string>();
 
