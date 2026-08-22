@@ -23,11 +23,14 @@ export interface CompareOptions extends GatewayCallOptions {
 // question this command exists to answer, which of these near-duplicate skills
 // is actually better, the body is the evidence.
 //
-// Bodies are capped because the catalogue contains genuine outliers: one
-// `last30days` SKILL.md is 17,384,200 bytes. Sending that whole would blow any
-// context window and cost real money to be told nothing. Truncated artifacts
-// are named in the result so a caller never mistakes a partial read for a
-// complete one.
+// Bodies are capped because the catalogue contains genuine outliers: the
+// deployed `last30days` SKILL.md is 294,870 bytes across 4,884 lines. Sending
+// several of those in one comparison would blow the context window and cost
+// real money to be told nothing. Note that the catalogue's `size` column
+// records the whole package directory (17,384,200 bytes for that artifact),
+// not the file, so the cap is taken from a real `statSync` and never from
+// catalogue metadata. Truncated artifacts are named in the result so a caller
+// never mistakes a partial read for a complete one.
 const MAX_BODY_BYTES = 120_000;
 
 function readBody(artifact: Artifact): { body: string; truncated: boolean } {
