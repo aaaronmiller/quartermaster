@@ -105,7 +105,7 @@ test('skill packages deploy every member under one globally scoped skill directo
   expect(readFileSync(join(targetDir, 'imagegen', 'scripts', 'generate.py'), 'utf8')).toBe('print("image")\n');
 });
 
-test('deployment planning reports-and-skips packages that resolve to the same target', () => {
+test('deployment planning disambiguates packages that resolve to the same target', () => {
   const codex = loadBuiltInProfiles().find((profile) => profile.id === 'codex')!;
   const first = artifact({
     id: 'first',
@@ -122,17 +122,15 @@ test('deployment planning reports-and-skips packages that resolve to the same ta
   const artifacts = [first, second];
   const matrix = computeCompatibilityMatrix(artifacts, [codex]);
 
-  // Spike T105a decision 2: report-and-skip beats silent overwrite AND beats
-  // aborting the whole plan. The plan must succeed with both colliding
-  // artifacts excluded and a plain-language reason (NFR-050).
+  // Spike T105a decision updated 2026-08-22: report-and-RENAME beats
+  // report-and-skip. Both packages deploy; the loser gets a deterministic
+  // `<source-parent>-<package>` name and nothing is excluded for collision.
   const plan = compilePlan(artifacts, matrix.map((row) => row[0]!), codex);
-  expect(plan.operations).toHaveLength(0);
-  expect(plan.excluded.map((e) => e.artifact)).toEqual(
-    expect.arrayContaining(['first', 'second']),
-  );
-  for (const entry of plan.excluded) {
-    expect(entry.reason).toContain('collision');
-  }
+  expect(plan.operations).toHaveLength(2);
+  const targets = plan.operations.map((operation) => operation.targetPath);
+  expect(targets.some((t) => t.endsWith('/shared/SKILL.md'))).toBe(true);
+  expect(targets.some((t) => t.endsWith('/two-shared/SKILL.md'))).toBe(true);
+  expect(plan.excluded.filter((e) => e.reason.includes('collision'))).toHaveLength(0);
 });
 
 test('deployment plan surfaces provenance and risk flags before deploy', () => {

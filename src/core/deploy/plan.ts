@@ -127,6 +127,14 @@ export function compilePlan(
     }
   }
 
+  // Deterministic package-name disambiguation (spike T105a decision updated
+  // 2026-08-22: report-and-RENAME, not report-and-skip). When two packages
+  // resolve to the same target package name, the first-party copy keeps the
+  // bare name and every other copy is renamed `<source-parent>-<package>`
+  // (e.g. gstack-cso), matching the convention already in use on disk. All of
+  // the loser's member ops are rewritten to the new package dir.
+  disambiguatePackages(operations);
+
   // Report-and-skip beats silent overwrite and beats aborting the whole plan:
   // artifacts that still collide are excluded with a reason (spike T105a
   // decision 2, NFR-050), and every non-colliding placement proceeds.
@@ -137,6 +145,40 @@ export function compilePlan(
     operations,
     excluded,
   };
+}
+
+/**
+ * Deterministic package-name disambiguation for colliding packages.
+ * See the call site in compilePlan for the policy. Runs before
+ * dropCollisions so report-and-skip remains a last-resort safety net.
+ */
+function disambiguatePackages(operations: DeploymentOperation[]): void {
+  const byPackage = new Map<string, DeploymentOperation[]>();
+  for (const op of operations) {
+    const pkg = basename(dirname(op.targetPath));
+    const list = byPackage.get(pkg) ?? [];
+    list.push(op);
+    byPackage.set(pkg, list);
+  }
+  for (const [pkg, ops] of byPackage) {
+    if (ops.length < 2) continue;
+    // Only when the sources come from distinct package roots.
+    const roots = new Set(ops.map((op) => dirname(op.sourcePath)));
+    if (roots.size < 2) continue;
+    // First-party copy keeps the bare name; others get the source-parent
+    // prefix (gstack/cso -> gstack-cso), deterministic by compile order.
+    const firstParty = ops.find((op) => op.sourcePath.includes('/first-party/'));
+    const winner = firstParty ?? ops[0];
+    for (const op of ops) {
+      if (op === winner) continue;
+      const sourceParent = basename(dirname(dirname(op.sourcePath)));
+      const newPkg = `${sourceParent}-${pkg}`;
+      const idx = op.targetPath.lastIndexOf(`/${pkg}/`);
+      if (idx >= 0) {
+        op.targetPath = op.targetPath.slice(0, idx) + `/${newPkg}/` + op.targetPath.slice(idx + pkg.length + 2);
+      }
+    }
+  }
 }
 
 function dropCollisions(
