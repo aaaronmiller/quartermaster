@@ -15,11 +15,18 @@ import { renderCatalogPage } from './routes/catalog';
 import { renderMatrixPage } from './routes/matrix';
 import { renderLoadoutsPage } from './routes/loadouts';
 import { renderProposalsPage } from './routes/proposals';
+import { parseScope } from './routes/scope';
 
 /** Loopback-only host. Never binds a public interface (NFR-030). */
 export const LOCAL_HOST = '127.0.0.1';
 
-const THEME_CSS_PATH = new URL('./theme.css', import.meta.url).pathname;
+// Imported as text so the bundler embeds the bytes in the compiled binary.
+// `new URL('./theme.css', import.meta.url).pathname` resolves to a path that
+// exists in the source tree but not inside `bun build --compile` output, so
+// `/theme.css` returned 500 from the installed `qm` while passing its test
+// against the source tree. The same applies to the animations script.
+import THEME_CSS from './theme.css' with { type: 'text' };
+import ANIMATIONS_JS from './assets/js/animations.js' with { type: 'text' };
 
 export function htmlResponse(body: string): Response {
   return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
@@ -31,16 +38,11 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
   const path = url.pathname;
 
   if (path === '/theme.css') {
-    return new Response(await Bun.file(THEME_CSS_PATH).text(), {
-      headers: { 'Content-Type': 'text/css' },
-    });
+    return new Response(THEME_CSS, { headers: { 'Content-Type': 'text/css' } });
   }
 
   if (path === '/assets/js/animations.js') {
-    const jsPath = new URL('./assets/js/animations.js', import.meta.url).pathname;
-    return new Response(await Bun.file(jsPath).text(), {
-      headers: { 'Content-Type': 'application/javascript' },
-    });
+    return new Response(ANIMATIONS_JS, { headers: { 'Content-Type': 'application/javascript' } });
   }
 
   // Advisory proposal actions (POST) — same lifecycle as the CLI.
@@ -60,12 +62,17 @@ export async function handleRequest(repo: Repository, profileDir: string, req: R
   switch (path) {
     case '/':
     case '/catalog':
-      return htmlResponse(renderCatalogPage(repo.listArtifacts(), path));
+      // Default the catalogue to skills. 10,487 of 12,137 artifacts are
+      // scripts inside skill packages, so an unfiltered first screen buries
+      // what the tool manages. `?type=all` opts out.
+      return htmlResponse(renderCatalogPage(repo.listArtifacts(), path, parseScope(url, 'skill')));
     case '/matrix': {
       const artifacts = repo.listArtifacts();
       const profiles = new ProfileRegistry({ profileDirs: [profileDir] }).listProfiles();
-      const matrix = computeCompatibilityMatrix(artifacts, profiles);
-      return htmlResponse(renderMatrixPage(matrix, profiles.map((p) => p.id), path));
+      const scope = parseScope(url, 'skill');
+      const scoped = scope.type ? artifacts.filter((a) => a.type === scope.type) : artifacts;
+      const matrix = computeCompatibilityMatrix(scoped, profiles);
+      return htmlResponse(renderMatrixPage(matrix, profiles.map((p) => p.id), path, scope));
     }
     case '/loadouts':
       return htmlResponse(renderLoadoutsPage(repo.listLoadouts(), path));

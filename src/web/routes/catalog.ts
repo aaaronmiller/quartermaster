@@ -5,12 +5,24 @@
 import type { Artifact } from '@core/types';
 import { artifactClassification } from '@core/classification/classify';
 import { layout, esc } from './layout';
+import { applyScope, renderScopeControls, type ViewScope } from './scope';
 
-export function renderCatalogPage(artifacts: Artifact[], path: string = '/'): string {
+export function renderCatalogPage(
+  artifacts: Artifact[],
+  path: string = '/',
+  scope?: ViewScope,
+): string {
+  // Without a scope the caller wants everything, which is how this page came
+  // to weigh 5 MB. Callers that serve a browser always pass one.
+  const scoped = scope
+    ? applyScope(artifacts, scope)
+    : { page: artifacts, matched: artifacts.length, total: artifacts.length };
+  const types = [...new Set(artifacts.map((a) => a.type))].sort();
+  const controls = scope ? renderScopeControls(path, scope, scoped, types) : '';
   const chip = (text: string, cls = '') =>
     cls ? `<span class="chip ${esc(cls)}">${esc(text)}</span>` : `<span class="chip">${esc(text)}</span>`;
 
-  const rows = artifacts
+  const rows = scoped.page
     .map((a) => {
       const classification = artifactClassification(a);
       return `<tr class="data-row">
@@ -30,13 +42,14 @@ export function renderCatalogPage(artifacts: Artifact[], path: string = '/'): st
 
   const countPills = `
     <div class="stat-row anim-section">
-      <div class="stat-pill"><div class="stat-val">${artifacts.length}</div><div class="stat-label">Total</div></div>
+      <div class="stat-pill"><div class="stat-val">${scoped.total}</div><div class="stat-label">Total</div></div>
       <div class="stat-pill"><div class="stat-val">${new Set(artifacts.map((a) => a.type)).size}</div><div class="stat-label">Types</div></div>
       <div class="stat-pill"><div class="stat-val">${artifacts.filter((a) => a.source && a.source.kind === 'self').length}</div><div class="stat-label">Self-authored</div></div>
     </div>`;
 
   const body = `
     ${countPills}
+    ${controls}
     <div class="glass-card accent-bar anim-section table-wrap">
       <table>
         <thead><tr><th>Type</th><th>Name</th><th>Path</th><th>Capabilities</th><th>Source / lifecycle</th><th>Functions</th></tr></thead>
