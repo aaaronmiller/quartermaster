@@ -25,7 +25,15 @@ export async function evalCommand(args: ParsedArgs): Promise<OutputEnvelope> {
       const artifact = repo.getArtifact(first);
       if (!artifact) return failure('eval', `artifact not found: ${first}`);
       const categories = typeof args.flags.categories === 'string' ? csv(args.flags.categories) : ['quality'];
-      return success('eval', await gradeArtifact(artifact, categories, cfg));
+      // `multi` mode reads the artifact body; `single` grades metadata alone.
+      // The core supported both from the start, but the CLI never passed the
+      // option, so every graded score was a judgement of the frontmatter and
+      // never of the instructions the skill actually contains. `--deep` is the
+      // mode a human means when they ask whether a skill is any good; the
+      // metadata-only pass stays the default because it is the cheap one to
+      // run across the whole catalogue.
+      const deep = args.flags.deep === true || args.flags.mode === 'multi';
+      return success('eval', await gradeArtifact(artifact, categories, cfg, { mode: deep ? 'multi' : 'single' }));
     }
     if (sub === 'compare') {
       const ids = args.positional.slice(1);
@@ -33,7 +41,13 @@ export async function evalCommand(args: ParsedArgs): Promise<OutputEnvelope> {
       if (artifacts.some((artifact) => artifact === null)) {
         return failure('eval', 'one or more artifacts not found. Run `qm query list` to see available artifacts.');
       }
-      return success('eval', await compareArtifacts(artifacts.filter((artifact) => artifact !== null), cfg));
+      const deepCompare = args.flags.deep === true || args.flags.mode === 'multi';
+      return success(
+        'eval',
+        await compareArtifacts(artifacts.filter((artifact) => artifact !== null), cfg, {
+          mode: deepCompare ? 'multi' : 'single',
+        }),
+      );
     }
     if (sub === 'investigate') {
       if (!first) return failure('eval', 'usage: qm eval investigate <artifact> --turns=N');
