@@ -19,10 +19,12 @@ reasoning in the prompt was the single largest source of bloat in the previous v
 sections carried the measurement that motivated them, reloading forever to justify a rule
 the reader had already accepted.
 
-**Source of truth.** `/home/cheta/code/agents/CLAUDE.md`. The copy in this directory is
-canonical for reading; the repository file is canonical for editing. `~/.claude/CLAUDE.md`,
-`~/.omp/agent/AGENTS.md`, `~/.codex/AGENTS.md` and `~/.config/opencode/AGENTS.md` are all
-symlinks to it — one file serves four harnesses.
+**Source of truth.** `/home/cheta/code/quartermaster/guidance/SYSTEM-PROMPT.md`.
+`/home/cheta/code/agents/CLAUDE.md` is a symlink to it, and `~/.claude/CLAUDE.md`,
+`~/.omp/agent/AGENTS.md`, `~/.codex/AGENTS.md` and `~/.config/opencode/AGENTS.md` are
+symlinks to *that* — one file serves four harnesses through a two-hop chain. Editing any of
+them edits all of them. The copy under `~/LIVING_DOCUMENTS/system/` is for reading only.
+See [RULES-FILES.md](../../../LIVING_DOCUMENTS/system/RULES-FILES.md) for the full chain.
 
 ---
 
