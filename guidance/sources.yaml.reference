@@ -1,0 +1,389 @@
+version: 1
+libraryRoot: /home/cheta/.quartermaster/library
+sources:
+  - id: custom-skills
+    class: first-party
+    path: /home/cheta/code/custom-skills
+    remote: https://github.com/aaaronmiller/custom-skills.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, canonical]
+
+  - id: master-user-skills
+    class: first-party
+    path: /home/cheta/code/master-user-skills
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, transitional]
+
+  - id: agents-curated
+    class: first-party
+    path: /home/cheta/code/agents/skills
+    remote: https://github.com/aaaronmiller/agents.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [curated, transitional]
+
+  - id: specialist-curated-library
+    class: third-party
+    path: /home/cheta/code/agents/archive/temp-skills
+    trusted: false
+    lifecycle: specialist
+    updatePolicy: manual
+    tags: [library-only, curated, review-required]
+
+  - id: gstack
+    class: third-party
+    path: /home/cheta/git/gstack
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [development, curated]
+
+  - id: citadel
+    class: third-party
+    path: /home/cheta/git/Citadel
+    trusted: false
+    enabled: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [development]
+
+  # Disabled 2026-08-23: /home/cheta/git/skills no longer exists. `qm library
+  # prepare` is all-or-nothing, so this one dead path was rejecting the whole
+  # plan with "nothing was changed" -- which is why the library never
+  # materialised past its first three links. Retired with `enabled: false`
+  # rather than deleted, so the entry survives if the repo comes back.
+  - id: skills-repo
+    class: third-party
+    path: /home/cheta/git/skills
+    trusted: false
+    enabled: false
+    lifecycle: deprecated
+    updatePolicy: pull-fast-forward
+    tags: [curated, missing-source]
+
+  - id: ai-driven-development
+    class: third-party
+    path: /home/cheta/git/ai-driven-development
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [development]
+
+  - id: hyperframes
+    class: third-party
+    path: /home/cheta/git/hyperframes
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [video, animation]
+
+  - id: ghost-ai
+    class: third-party
+    path: /home/cheta/git/ghost-ai
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [ai]
+
+  - id: taste-skill
+    class: third-party
+    path: /home/cheta/git/taste-skill
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [design]
+
+  - id: arbor
+    class: third-party
+    path: /home/cheta/git/Arbor
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [development]
+
+  - id: understand-anything
+    class: third-party
+    path: /home/cheta/git/understand-anything
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [code-analysis]
+
+  - id: caveman-skill
+    class: third-party
+    path: /home/cheta/git/caveman
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [communication]
+
+  - id: skillspector
+    class: third-party
+    path: /home/cheta/git/skillspector
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [skill-management]
+
+  - id: dify-skills
+    class: third-party
+    path: /home/cheta/git/dify
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [ai-platform]
+
+  - id: obsidian-skills
+    class: third-party
+    path: /home/cheta/git/obsidian-skills
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [obsidian, note-taking]
+
+  - id: raptor
+    class: third-party
+    path: /home/cheta/git/raptor
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [automation]
+
+  - id: oh-my-pi
+    class: third-party
+    path: /home/cheta/git/oh-my-pi
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [omp, harness]
+
+  - id: skill-audit
+    class: third-party
+    path: /home/cheta/git/skill-audit
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [skill-management]
+
+  - id: mission-control
+    class: third-party
+    path: /home/cheta/git/mission-control
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [project-management]
+
+  - id: coding-agent-session-search
+    class: third-party
+    path: /home/cheta/git/coding_agent_session_search
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [cass, search]
+
+  - id: drawio-skill
+    class: third-party
+    path: /home/cheta/git/drawio-skill
+    subpath: skills
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [diagramming]
+
+  - id: improve
+    class: third-party
+    path: /home/cheta/git/improve
+    subpath: skills
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [refinement]
+
+  - id: stride-website-builder
+    class: third-party
+    path: /home/cheta/git/stride-website-builder-pipeline
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [web]
+
+  - id: stop-slop
+    class: third-party
+    path: /home/cheta/git/stop-slop
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [writing]
+
+  - id: rust-reverse-engineering
+    class: third-party
+    path: /home/cheta/git/rust-reverse-engineering-skill
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [security, reverse-engineering]
+
+  - id: remotion-skills
+    class: third-party
+    path: /home/cheta/git/remotion-skills
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [video, remotion]
+
+  - id: planf3
+    class: third-party
+    path: /home/cheta/git/planf3
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [planning]
+
+  - id: last30days-skill
+    class: third-party
+    path: /home/cheta/git/last30days-skill
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [research]
+
+  - id: knowledge-catalog
+    class: third-party
+    path: /home/cheta/git/knowledge-catalog
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [knowledge]
+
+  - id: cass-recovery-base
+    class: third-party
+    path: /home/cheta/git/cass-recovery-base
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [cass, recovery]
+
+  - id: flightdeck
+    class: third-party
+    path: /home/cheta/git/FlightDeck
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [agent]
+
+  - id: clawmem
+    class: third-party
+    path: /home/cheta/git/ClawMem
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [memory]
+
+  - id: claude-defaults
+    class: harness-defaults
+    path: /home/cheta/.claude/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, claude-code]
+
+  - id: hermes-defaults
+    class: harness-defaults
+    path: /home/cheta/.hermes/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, hermes]
+
+  - id: gemini-defaults
+    class: harness-defaults
+    path: /home/cheta/.gemini/antigravity/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, gemini]
+
+  - id: opencode-defaults
+    class: harness-defaults
+    path: /home/cheta/.config/opencode/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, opencode]
+
+  - id: antigravity-cli-defaults
+    class: harness-defaults
+    path: /home/cheta/.gemini/antigravity-cli/builtin/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, antigravity]
+
+  - id: pi-defaults
+    class: harness-defaults
+    path: /home/cheta/.pi/agent/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, pi-agent]
+
+  - id: qwen-defaults
+    class: harness-defaults
+    path: /home/cheta/.qwen/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, qwen]
+
+  - id: codex-defaults
+    class: harness-defaults
+    path: /home/cheta/.codex/skills
+    trusted: false
+    lifecycle: archive
+    updatePolicy: manual
+    tags: [harness, codex]
+
+  - id: graphify
+    class: third-party
+    path: /home/cheta/git/graphify/graphify/skills/claude
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [development]
+
+  # The Living Documents onboarding skill ships from the project's own
+  # repository alongside the main skill, which is already registered as
+  # `living-documents`. It was the only skill sync.sh deployed that had no
+  # entry here: 228 of the 229 it deploys were already catalogued, matched on
+  # the directory name rather than the frontmatter `name:` field.
+  # gstack ships its deployable, harness-prefixed builds under `.agents/skills/`
+  # — 54 skills named `gstack-<verb>`. The catalog scanner skips every directory
+  # whose name begins with a dot (scanner.ts, `entry.name.startsWith('.')`), so
+  # scanning the repo root finds only the unprefixed source dirs and none of the
+  # builds. Zero catalog rows contained `/.agents/` before this entry.
+  #
+  # Registering the inner path explicitly is the general remedy for any source
+  # that keeps artifacts inside a dot-directory: the scan starts below the dot
+  # instead of having to traverse it. Prefer this over changing the skip rule,
+  # which exists to keep .git and friends out of the catalogue.
+  - id: gstack-agents-builds
+    class: third-party
+    path: /home/cheta/git/gstack/.agents/skills
+    trusted: false
+    lifecycle: active
+    updatePolicy: pull-fast-forward
+    tags: [harness-builds, gstack]
+
+  - id: living-documents-onboard
+    class: first-party
+    path: /home/cheta/code/living-documents/skill-onboard
+    remote: https://github.com/aaaronmiller/living-documents.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, canonical, onboarding]
