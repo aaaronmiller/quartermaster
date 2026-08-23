@@ -44,7 +44,8 @@ CONCEPTS = {
     "investigate unexpected state":
         r"\b(unexpected state|unfamiliar (files|branches)|in-progress work|before deleting or overwriting)\b",
     "response length discipline":
-        r"\b(proportional to task|concise|at most \d+ lines|keep .{0,20}responses?|verbose)\b",
+        r"\b(proportional to|concise|at most \d+ lines|keep .{0,20}responses?|verbose|"
+        r"length that comes from|responses? .{0,15}(short|brief))\b",
     "prescribed reply skeleton":
         r"\b(DONE:|status block|three-line|RUNNING:|BLOCKED:)\b",
     "mid-task steering protocol":
