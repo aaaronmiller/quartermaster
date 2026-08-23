@@ -168,10 +168,51 @@ export async function capturePriorState(
   }
 }
 
+/**
+ * Refuse to touch a path that resolves outside the directory it claims to be in.
+ *
+ * On 2026-08-15 a rollback of a codex deployment removed 268 files from
+ * `/home/cheta/code/custom-skills`, the operator's own source repository. No
+ * operation named that path. The mechanism was symlink traversal: another
+ * deployer had populated `~/.codex/skills/<skill>` with links whose
+ * `references/` and `scripts/` subdirectories pointed back into custom-skills,
+ * so `unlink("~/.codex/skills/x/references/y.md")` followed the directory link
+ * and deleted the real file in the source tree.
+ *
+ * `lstat` does not help here: the final component was a genuine file, and every
+ * symlink was in the path *prefix*. Only comparing the fully resolved parent
+ * against the intended parent catches it.
+ *
+ * A deployment writes inside a harness directory. If the real path leaves that
+ * directory, something in the prefix is a link out and the operation is refused
+ * rather than followed.
+ */
+async function escapesTarget(targetPath: string): Promise<boolean> {
+  try {
+    const intended = dirname(targetPath);
+    const actual = await fs.realpath(intended);
+    // realpath() on the intended parent collapses every symlink in the prefix.
+    // Equal means no traversal; different means the write would land elsewhere.
+    return actual !== intended;
+  } catch {
+    // Parent does not exist yet: nothing to traverse into, so nothing to escape.
+    return false;
+  }
+}
+
 export async function restorePriorState(
   op: DeploymentOperation,
   priorState: DeploymentOperation['priorState'] | undefined,
 ): Promise<void> {
+  if (await escapesTarget(op.targetPath)) {
+    throw new Error(
+      `[quartermaster] refusing to restore ${op.targetPath}: its parent resolves ` +
+        `to ${await fs.realpath(dirname(op.targetPath))}, outside the deployment ` +
+        `target. A symlink in the path prefix would send this write into another ` +
+        `tree. This guard exists because a rollback on 2026-08-15 deleted 268 ` +
+        `files from a source repository this way.`,
+    );
+  }
   // Remove the target even when it is a dangling symlink: existsSync follows
   // symlinks, so a link whose target is missing reports false and would be
   // left behind. lstat sees the link itself.
