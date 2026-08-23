@@ -60,3 +60,4 @@ src/web/public/
 
 # Local project config (user-specific)
 quartermaster.json
+staged-for-deletion/
