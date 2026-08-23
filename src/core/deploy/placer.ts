@@ -46,6 +46,22 @@ export async function executePlacement(
       const targetDir = dirname(op.targetPath);
       await fs.mkdir(targetDir, { recursive: true });
 
+      // Refuse before writing, not only before restoring. The guard was first
+      // added to rollback because that is where it caused visible loss, but the
+      // forward path traverses the same symlinks: a deploy on 2026-08-23 wrote
+      // 2,533 files "into" ~/.claude/skills and landed 170 of them in
+      // /code/custom-skills and /code/agents, because those harness entries are
+      // symlinks another deployer created. Nothing was destroyed - the writes
+      // were additions with flattened names - but the next rollback would have
+      // removed real source files.
+      if (await escapesTarget(op.targetPath)) {
+        throw new Error(
+          `[quartermaster] refusing to place ${op.targetPath}: its parent resolves ` +
+            `to ${await fs.realpath(dirname(op.targetPath))}, outside the deployment ` +
+            `target. A symlink in the path prefix would write into another tree.`,
+        );
+      }
+
       // Capture prior state
       const priorState = await capturePriorState(op.targetPath);
       op.priorState = priorState;

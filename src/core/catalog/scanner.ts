@@ -22,7 +22,35 @@ export interface ScannerOptions {
   skipPatterns?: string[];
 }
 
-const DEFAULT_SKIP = ['.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build', '.gemini-images', 'tests', 'test', 'fixtures', '__tests__', '__snapshots__'];
+// Directories that never contain artifacts but are expensive to walk.
+//
+// `node_modules`, `dist` and `build` covered the JavaScript ecosystem; nothing
+// covered the compiled ones. A source registered at a repository root drags its
+// entire build output into every scan: the CASS repo's `target/debug/incremental`
+// alone holds thousands of binary query-cache blobs, and a full scan of this
+// machine's 48 sources ran past seven minutes with the scanner sitting in it.
+// That is also why the NFR-001 performance test (full scan under 10s on 1000
+// artifacts) has been failing.
+//
+// Rust `target`, Go `vendor`, Java `.gradle` and `out`, Python `.tox` and
+// `.mypy_cache`, and Bazel's `bazel-*` symlink farm are added for the same
+// reason. Each is a build product with a conventional name, so skipping by name
+// generalises to any repository rather than encoding anything about this one.
+// `staged-for-deletion` is a different class from the build products above: it
+// is content a human has explicitly retired but not yet removed, kept in-tree so
+// the decision stays reversible. Catalogued as live artifacts, 18 such skills
+// competed with the replacements that superseded them -- including two versions
+// of backtranslation-spec-auditor and a stale copy of living-documents. A
+// directory whose name declares its contents dead should not be a source, and
+// the name is a convention rather than anything specific to one repository, so
+// skipping it generalises the same way the build-product names do.
+const DEFAULT_SKIP = [
+  '.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build',
+  '.gemini-images', 'tests', 'test', 'fixtures', '__tests__', '__snapshots__',
+  'target', 'vendor', 'out', '.gradle', '.tox', '.mypy_cache', '.pytest_cache',
+  '.next', '.turbo', 'coverage', '.cargo', 'Pods',
+  'staged-for-deletion', 'staged_for_deletion',
+];
 
 const VISITED_INODES = new Set<string>();
 
