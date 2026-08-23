@@ -1,0 +1,58 @@
+# Kiro, on the Windows side of the WSL boundary.
+#
+# sync.sh maintained these directories with `sync_windows_copy`, the one
+# function of the five it uniquely performed that Quartermaster had no
+# equivalent for. The existing `kilocode` profile targets ~/.kilocode on the
+# Linux side; these are different directories on the Windows filesystem holding
+# 99 live entries, and nothing else was deploying to them.
+#
+# A profile is the right mechanism rather than a copy step: it makes the Windows
+# target a first-class harness that `qm deploy kiro` serves like any other, and
+# the same approach works for any destination reachable as a path.
+#
+# deployment.method is `copy` and crossDevice is true because /mnt/c is a 9p
+# mount: symlinks created there are not honoured by Windows applications, and a
+# link would silently produce an unreadable entry rather than an error.
+#
+# Kiro reads its steering documents from a `steering/` directory, which is why
+# slash-commands appear twice in sync.sh's table (commands -> commands, and
+# commands -> steering). Only the canonical `commands` mapping is declared here;
+# duplicating one artifact family into two directories is a sync.sh behaviour
+# that should be a deliberate decision rather than an inherited one.
+id: kiro
+name: Kiro (Windows)
+version: 1
+guidanceFilename: AGENTS.md
+artifactTypes:
+  - type: skill
+    locations:
+      global: /mnt/c/Users/Administrator/.kiro/skills
+      project: .kiro/skills
+    flat: false
+    configFormat: null
+    dirname: skills
+  - type: agent
+    locations:
+      global: /mnt/c/Users/Administrator/.kiro/agents
+      project: .kiro/agents
+    flat: false
+    configFormat: yaml
+    dirname: agents
+  - type: slash-command
+    locations:
+      global: /mnt/c/Users/Administrator/.kiro/commands
+      project: .kiro/commands
+    flat: false
+    configFormat: markdown
+    dirname: commands
+capabilities:
+  - type: skill
+    dialects: [agent-md]
+  - type: agent-config
+    dialects: [generic]
+  - type: commands
+    dialects: [claude]
+deployment:
+  method: copy
+  crossDevice: true
+  priorStateBackup: true

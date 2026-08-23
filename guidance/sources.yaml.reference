@@ -371,6 +371,42 @@ sources:
   # that keeps artifacts inside a dot-directory: the scan starts below the dot
   # instead of having to traverse it. Prefer this over changing the skip rule,
   # which exists to keep .git and friends out of the catalogue.
+  # The three artifact families sync.sh deploys from /code/agents that are not
+  # skills. Quartermaster already models each of them -- `agent`, `hook` and
+  # `slash-command` are declared artifact types with per-harness locations in
+  # every profile -- but the directories had never been registered as sources,
+  # so the catalogue held almost none of them and sync.sh remained the only
+  # thing deploying them.
+  #
+  # Registering the directory is all that is required; the scanner classifies by
+  # content, so the same three entries would work for any layout.
+  - id: agents-subagents
+    class: first-party
+    path: /home/cheta/code/agents/agents
+    remote: https://github.com/aaaronmiller/agents.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, subagents]
+
+  - id: agents-commands
+    class: first-party
+    path: /home/cheta/code/agents/commands
+    remote: https://github.com/aaaronmiller/agents.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, slash-commands]
+
+  - id: agents-hooks
+    class: first-party
+    path: /home/cheta/code/agents/hooks
+    remote: https://github.com/aaaronmiller/agents.git
+    trusted: true
+    lifecycle: active
+    updatePolicy: manual
+    tags: [user-authored, hooks]
+
   - id: gstack-agents-builds
     class: third-party
     path: /home/cheta/git/gstack/.agents/skills
