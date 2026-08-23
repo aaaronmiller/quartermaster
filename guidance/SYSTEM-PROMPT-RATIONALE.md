@@ -752,12 +752,64 @@ trend is claimed anywhere in this document**, and the "measured over 22 reply/re
 pairs in the week to 2026-08-21" figure quoted in `REPORTING` predates this methodology and
 was not recomputed.
 
-### 7.5 Re-running it
+### 7.5 First re-measurement, 2026-08-23 — the hypothesis is not supported
 
-The measurement should be repeated against a session conducted under the compressed prompt
-before the compression is called a success. Section 6, rule 8. The expected direction is
-that status-block compliance rises as the number of competing sections falls; if it does
-not, the compression was not the fix and the hypothesis in Part 1 is wrong.
+The compression rests on a claim: that the file had grown until its size suppressed
+compliance, and that cutting it would raise compliance. The first attempt to test that
+claim produced evidence against it.
+
+Session `9ac1384d` ran to 62 terminal replies. The compressed prompt only took effect at
+the very end, so **every reply in this transcript ran under the old 755-line file**. That
+makes it useless as an after-measurement — but splitting it in half is informative:
+
+| | first 30 replies | last 30 replies |
+| --- | ---: | ---: |
+| opens with status block | 40% | **90%** |
+| median characters | 2,958 | 2,487 |
+| over 3,000 characters | 47% | 23% |
+| ends in a decision menu | 27% | **43%** |
+
+Status-block compliance rose from 40% to 90% **with no change to the prompt**. The file was
+identical throughout. What changed was the conversation: the operator corrected the
+behaviour repeatedly and directly, and the correction worked.
+
+Two conclusions follow, and neither is comfortable.
+
+**In-conversation correction dominates the prompt.** A 50-point compliance swing occurred
+without touching the file. Whatever the prompt's size was doing, it was smaller than the
+effect of being told off. Any future claim that a prompt edit improved compliance has to
+survive this confound, and a before/after taken across a single session cannot.
+
+**The menu rate got worse, not better** — 27% to 43% — over the same period in which every
+other metric improved. This is the metric the F1 fix (section 1.3) was supposed to address,
+and the fix landed mid-session. Either the fix does not work, the detector is
+over-counting, or the later work genuinely contained more decisions that needed the
+operator. All three are plausible and this data cannot separate them.
+
+**Status of the compression: unvalidated.** It is defensible on other grounds — the
+structural audit went from 13 findings to 4, the duplicated rule is gone, and 369 lines of
+duplicated skill content now live only in the skills. None of that is a compliance
+measurement, and none of it should be reported as one.
+
+### 7.6 Re-running it properly
+
+Section 7.5 shows that a single-session before/after cannot answer this, because
+in-conversation correction moves compliance more than the file does. A usable measurement
+needs all four of:
+
+- **A clean session** — measured from the first reply of a session that *began* under the
+  compressed prompt, not one the compression landed in the middle of.
+- **No mid-session correction on the measured metric.** If the operator has to say "use the
+  status block", that session is contaminated for that metric.
+- **Several sessions.** One session is one task mix, and the 40-to-90 swing shows how far a
+  single session's shape can move the number on its own.
+- **The menu metric read by hand.** The detector matches on shape and cannot separate a
+  manufactured menu from a genuine decision.
+
+Until that exists, the compression is justified by the structural audit (13 findings down
+to 4), by the removal of a duplicated rule that had drifted, and by 369 lines of duplicated
+skill content now living only in the skills. **None of that is a compliance measurement and
+it must not be reported as one.**
 
 ---
 
