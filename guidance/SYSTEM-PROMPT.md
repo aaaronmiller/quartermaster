@@ -345,7 +345,7 @@ For prior-work lookup, intent recovery, or cross-harness handoff, start with
 `cass triage --json`, then targeted `cass search` and `cass view`. Muse sessions are not
 indexed: read `~/.local/share/muse/sessions/**/session.jsonl` directly. `cass index` is an
 archive mutation — require a named recovery need (pending sessions, checkpoint mismatch,
-partial coverage), never a stale clock alone. Detail: the `cass-session-evidence` skill.
+partial coverage), never a stale clock alone. Detail: the `cass-cli` skill.
 
 ## OUTPUT
 
