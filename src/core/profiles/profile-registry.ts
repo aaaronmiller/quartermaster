@@ -143,7 +143,18 @@ function skillOnlyProfile(
     version: 1,
     guidanceFilename,
     artifactTypes: [loc('skill', globalPath, projectPath, false, null, 'skills')],
-    capabilities: [cap('skill', ['agent-md'])],
+    // A skill is rejected outright if it declares any capability the harness
+    // does not list, and 49 of the gstack builds declare `mcp: single-server`
+    // beside `skill: agent-md` because their instructions reference an MCP
+    // server. Declaring only `skill` therefore dropped 61 skills from each of
+    // these harnesses while claude-code, codex and hermes -- which list `mcp`
+    // -- received all 224. sync.sh had delivered them everywhere, so the
+    // omission was a regression rather than a deliberate restriction.
+    //
+    // Every harness built from this helper is an agent CLI that speaks MCP, so
+    // the declaration states a fact about them rather than relaxing the check:
+    // an artifact naming a capability none of them has is still refused.
+    capabilities: [cap('skill', ['agent-md']), cap('mcp', ['single-server'])],
     deployment: { method: 'link', crossDevice: false, priorStateBackup: true },
   };
 }

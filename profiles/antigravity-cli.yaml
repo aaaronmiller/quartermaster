@@ -9,6 +9,11 @@ artifactTypes:
 capabilities:
   - type: skill
     dialects: [agent-md]
+  # Declared so a skill that references an MCP server is not rejected whole.
+  # The matrix refuses an artifact naming any capability the harness omits,
+  # which silently dropped 61 gstack skills from every profile lacking this.
+  - type: mcp
+    dialects: [single-server]
 deployment:
   method: link
   crossDevice: false
