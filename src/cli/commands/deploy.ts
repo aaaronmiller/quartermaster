@@ -97,6 +97,26 @@ export async function deployCommand(args: ParsedArgs): Promise<OutputEnvelope> {
         storeRecord(record, repo);
         deployments.push({ plan, record, result });
       }
+      // A failed placement rolls the whole batch back, so the harness is left
+      // untouched. Reporting that as success is worse than the failure itself:
+      // a codex deploy wrote nothing, exited 0 and printed "Applied: 2676",
+      // and the only way to discover it was to count files on disk afterwards.
+      // The exit status has to carry the batch outcome.
+      const failures = deployments.flatMap((d) =>
+        d.result.operations
+          .filter((op) => op.status === 'failed')
+          .map((op) => ({ harness: d.plan.harness, op })),
+      );
+      if (failures.length > 0) {
+        const first = failures[0];
+        if (first === undefined) throw new Error('unreachable: failures is non-empty');
+        return failure(
+          'deploy',
+          `${failures.length} operation(s) failed; the batch was rolled back and ` +
+            `${first.harness ?? 'the harness'} was left unchanged. First failure: ` +
+            `${first.op.operation.targetPath} — ${first.op.error ?? 'unknown error'}`,
+        );
+      }
       return success('deploy', {
         mode: 'applied',
         ...(deployments.length === 1 ? deployments[0] : { deployments }),

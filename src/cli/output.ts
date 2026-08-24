@@ -309,8 +309,40 @@ function renderPlan(o: Record<string, unknown>): string {
     parts.push(`${summary}${excluded.length > 0 ? `, ${excluded.length} excluded` : ''}\n${[...lines, ...exclLines].join('\n')}`);
   }
   if (parts.length === 0) return 'no plan';
-  const header = o.mode === 'dry-run' ? 'Dry-run plan (nothing applied). Re-run with --yes to apply:' : 'Applied:';
-  return `${header}\n${parts.join('\n')}`;
+  if (o.mode === 'dry-run') {
+    return `Dry-run plan (nothing applied). Re-run with --yes to apply:\n${parts.join('\n')}`;
+  }
+  // Count what the placement actually did rather than what the plan intended.
+  // These differ whenever an operation is skipped because the target already
+  // matches, and they diverge completely when the batch rolls back -- which is
+  // how "Applied: 2676" came to describe a deploy that wrote nothing at all.
+  const outcome = summarisePlacement(o);
+  return `Applied${outcome}:\n${parts.join('\n')}`;
+}
+
+/** ` (2676 placed)` / ` (0 placed, 2675 skipped, 1 failed)`, or '' if unknown. */
+function summarisePlacement(o: Record<string, unknown>): string {
+  const results = [
+    ...(o.result ? [o.result] : []),
+    ...((o.deployments as Array<Record<string, unknown>> | undefined) ?? []).map((d) => d.result),
+  ];
+  const tally: Record<string, number> = {};
+  let seen = false;
+  for (const r of results) {
+    const ops = (r as Record<string, unknown> | undefined)?.operations;
+    if (!Array.isArray(ops)) continue;
+    seen = true;
+    for (const op of ops as Array<Record<string, unknown>>) {
+      const status = String(op.status ?? 'unknown');
+      tally[status] = (tally[status] ?? 0) + 1;
+    }
+  }
+  if (!seen) return '';
+  const order = ['placed', 'skipped', 'failed'];
+  const shown = order
+    .filter((s) => (tally[s] ?? 0) > 0)
+    .map((s) => `${tally[s]} ${s}`);
+  return shown.length > 0 ? ` (${shown.join(', ')})` : ' (nothing placed)';
 }
 
 function renderStatus(o: Record<string, unknown>): string {
