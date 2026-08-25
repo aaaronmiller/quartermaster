@@ -173,20 +173,83 @@ Use this for each skill under review:
 
 ## Cross-Skill Comparison
 
-When you find a marketplace skill that overlaps with one you already have,
-or when deciding whether to adopt a new skill vs keep an existing one:
+Two skills overlap and you must decide which survives. Run these six steps in
+order. Steps 0 and 1 are the ones that decide whether the answer is any good.
 
-1. **Load the rubric**: Read `references/scoring-rubric.md` — it contains the
-   10-category scoring system, comparison protocol, and merging methodology.
-2. **Score both skills**: Grade each independently using the rubric.
-3. **Compare**: If yours wins by 10+ points, keep yours. If theirs wins,
-   adopt theirs. If close (<10), merge the best parts of both.
-4. **Merge**: Start with the higher-scoring base, port elements from the other,
-   save the result to Skills-USER/.
-5. **Validate**: Run deliberative refinement (V(3,1,0) LITE) on the merge.
+### 0. Ask whether it is the same task at all
 
-The rubric also covers marketplace gap analysis — how to check what's trending
-on skills.sh, ClaudSkills, Agensi, etc., and whether we're missing something. |
+Before comparing anything, read both bodies and answer: **would a user's
+phrasing plausibly land on both?**
+
+Measured 2026-08-24 across 25 contests: **13 of 25 pairs were not the same
+task.** A first pass that skipped this question "resolved" conflicts by
+deleting skills that were never competing — `weekly-report-suite` against
+`what-did-i-get-done`, `humanize-writing` against `stop-slop`, `strata`
+against `spec-workflow`. Every one of those is a keep-both.
+
+If the answer is no, stop. The fix is a description boundary, not a deletion.
+
+### 1. Derive the rubric BEFORE reading the candidates
+
+Do not carry a general-purpose rubric into a specific comparison. Write 5-7
+criteria for what a skill *for this particular job* must do, and make every one
+checkable against the text.
+
+    Concrete: "names specific font stacks and when to use each"
+    Vague:    "gives good visual direction"
+
+A fixed rubric produces defensible prose that cannot be falsified. A derived one
+produces claims that can be checked by grepping the skill. When the same fixed
+rubric was used across many contests it contradicted itself between batches —
+`clawteam` beat `build-with-agent-team` in one group and lost to it in another.
+
+### 2. Score each criterion 0-3, not the skill as a whole
+
+    0 absent · 1 mentioned · 2 specified · 3 specified with enforceable detail
+
+Per-criterion scores make the margin visible. A verdict of "17 to 14" invites
+the next question — which criteria — where "theirs is better" does not.
+
+### 3. State what must NOT be grafted
+
+Picking a base and grafting the loser's best parts is the easy half. The half
+that protects the winner is naming what to refuse.
+
+A skill usually wins by being narrow. Absorbing a rival's scope costs the focus
+that won. In the same 25 contests, the graft was judged *not worth it* in every
+case where a narrow skill of ours beat a broader competitor. Record the refusal
+and the reason beside the graft.
+
+### 4. Check the losing skill for what it actually is
+
+A skill that scores badly as a general tool may be an excellent specific one.
+`frontend-design-masterclass` lost a frontend comparison 14 to 17 — because it
+is not a frontend skill, it is a SvelteKit skill, with twelve Svelte mentions
+and zero React. The correct action was not deletion but narrowing its triggers
+to the stack it actually serves.
+
+Before recommending removal, ask what the skill would win at if the contest were
+framed differently.
+
+### 5. Ground the decision in the operator's real usage
+
+Skill quality is not the only input. Check what the codebase actually uses:
+
+    find . -name package.json -not -path '*/node_modules/*' | xargs cat | grep -oE '"(react|svelte|vue)"' | sort | uniq -c
+
+A skill aimed at a stack appearing in 13 projects loses to one aimed at the
+stack in 38, even at equal quality.
+
+### Consider also: cross-judging
+
+pstack's `arena` skill fans out N candidates, has them critique each other, then
+has a *separate* picker decide against the rubric. Worth borrowing when the
+judge and the generator might share a blind spot — a single model comparing two
+skills can be consistently wrong in one direction and never notice.
+
+`references/scoring-rubric.md` holds the older 10-category system and the
+marketplace gap-analysis notes. Treat its rubric as a checklist of dimensions to
+consider while deriving a task-specific one in step 1 — not as the rubric.
 
 ## Description Audit (Understanding How Descriptions Work)
 
