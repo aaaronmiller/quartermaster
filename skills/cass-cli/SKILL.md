@@ -106,6 +106,14 @@ those you are claiming.
 For exhaustive intent attribution across projects, prefer bounded direct disk discovery
 over broad cass enumeration, and check the active CASS health and resource budget first.
 
+A topical query has a **silent recall gap**: content search runs BM25 plus vector fusion,
+so a turn phrased in vocabulary you did not query simply never appears, and nothing in the
+output says so. An exhaustive sweep must enumerate — `cass search "" --robot-format sessions`
+— rather than trusting that a well-chosen query found everything.
+
+Never quietly turn "all" into "recent N". If a scope cannot be honoured, say which bound
+was applied.
+
 ## Related
 
 - `intent-archaeology` — reconstructs what was asked for across a whole portfolio, using
