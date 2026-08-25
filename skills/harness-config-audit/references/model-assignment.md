@@ -100,6 +100,37 @@ Across all 116 probes: 18 `auth_error`, 22 `http_404`, 8 `timeout`, 4
 `rate_limit`. Roughly half the configured catalogue is unreachable, which is
 itself the argument for probing rather than assuming.
 
+## Models already in use elsewhere — do not double-book
+
+The operator runs other agents against some of these models, `glm-5.2` on
+OpenRouter among them. That matters twice over.
+
+**It contaminates the availability measurements above.** The 1-in-5 success rate
+recorded for `z-ai/glm-5.2:free` is a shared upstream pool *plus* this machine's
+own traffic. Some of that 429 rate is self-inflicted, so treat per-model
+availability as a reading taken under existing load, not a property of the
+model.
+
+**And assigning a model that is already busy is self-contention.** Two of the
+operator's own agents on one upstream pool will rate-limit each other, and the
+symptom — intermittent 429s under load — looks exactly like an external quota
+problem. Before assigning a model to subagent work, check whether something else
+already holds it.
+
+Practical rule: **give delegated work its own lane.** Where a model is in use by
+an interactive agent, pick a different model for the subagents rather than a
+larger share of the same one. The per-model quota structure means a second model
+is nearly free throughput, while a second worker on the same model is not.
+
+Currently known to be in use elsewhere:
+
+| model | provider | used by |
+| --- | --- | --- |
+| `glm-5.2` | openrouter | other agents (operator, 2026-08-25) |
+
+Add to this table as assignments are made. An entry here is a reason to route
+around a model, not a reason to stop using it.
+
 ## Reasoning effort
 
 | use case | effort |
