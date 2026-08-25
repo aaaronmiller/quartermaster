@@ -52,6 +52,9 @@ export function compilePlan(
   }
 
   const operations: DeploymentOperation[] = [];
+  // artifactId -> the package it belongs to, recorded while operations are
+  // built because a member's target path cannot reveal it.
+  const packageOf = new Map<string, { name: string; dir: string; sourceRoot: string }>();
   const excluded: Array<{ artifact: string; reason: string }> = [];
 
   for (const artifact of artifacts) {
@@ -101,6 +104,14 @@ export function compilePlan(
     const packageMembers = artifact.packageRoot ? stringList(artifact.metadata.packageMembers) : [];
     if (artifact.packageRoot && packageMembers.length > 0) {
       const packageName = basename(artifact.packageRoot);
+      // Record the package each operation belongs to. Disambiguation needs the
+      // package, and it cannot be recovered from the target path: a member's
+      // parent directory is `references` or `scripts`, not the skill.
+      packageOf.set(artifact.id, {
+        name: packageName,
+        dir: join(targetDir, packageName),
+        sourceRoot: artifact.packageRoot,
+      });
       for (const member of packageMembers) {
         operations.push(makeOperation(artifact, profile, join(artifact.packageRoot, member), join(targetDir, packageName, member)));
       }
@@ -133,7 +144,7 @@ export function compilePlan(
   // bare name and every other copy is renamed `<source-parent>-<package>`
   // (e.g. gstack-cso), matching the convention already in use on disk. All of
   // the loser's member ops are rewritten to the new package dir.
-  disambiguatePackages(operations);
+  disambiguatePackages(operations, packageOf);
 
   // Report-and-skip beats silent overwrite and beats aborting the whole plan:
   // artifacts that still collide are excluded with a reason (spike T105a
@@ -148,35 +159,65 @@ export function compilePlan(
 }
 
 /**
- * Deterministic package-name disambiguation for colliding packages.
- * See the call site in compilePlan for the policy. Runs before
+ * Rename packages that would land on the same directory. Runs before
  * dropCollisions so report-and-skip remains a last-resort safety net.
+ *
+ * The unit is the package, and a package is identified by its artifact -- not
+ * by the parent directory of one of its files. Keying on the parent directory
+ * treated every skill's `references/` and `scripts/` subdirectory as a package
+ * in its own right: hundreds of them shared the name `references`, came from
+ * different source roots, and so were "disambiguated" into
+ * `<skill>-references`. The skill's own prose still said `references/x.md`, so
+ * 541 of 545 disclosure paths across 117 skills pointed at nothing. The
+ * directory a member happens to sit in carries no identity; the artifact does.
+ *
+ * Only whole packages are considered. A loose single-file artifact has no
+ * package to rename, and a same-named pair of those is handled by
+ * dropCollisions.
  */
-function disambiguatePackages(operations: DeploymentOperation[]): void {
-  const byPackage = new Map<string, DeploymentOperation[]>();
+function disambiguatePackages(
+  operations: DeploymentOperation[],
+  packageOf: Map<string, { name: string; dir: string; sourceRoot: string }>,
+): void {
+  const byPackageName = new Map<string, Map<string, DeploymentOperation[]>>();
   for (const op of operations) {
-    const pkg = basename(dirname(op.targetPath));
-    const list = byPackage.get(pkg) ?? [];
+    const pkg = op.artifactId ? packageOf.get(op.artifactId) : undefined;
+    if (!pkg) continue;
+    const byArtifact = byPackageName.get(pkg.name) ?? new Map<string, DeploymentOperation[]>();
+    const list = byArtifact.get(op.artifactId as string) ?? [];
     list.push(op);
-    byPackage.set(pkg, list);
+    byArtifact.set(op.artifactId as string, list);
+    byPackageName.set(pkg.name, byArtifact);
   }
-  for (const [pkg, ops] of byPackage) {
-    if (ops.length < 2) continue;
-    // Only when the sources come from distinct package roots.
-    const roots = new Set(ops.map((op) => dirname(op.sourcePath)));
-    if (roots.size < 2) continue;
-    // First-party copy keeps the bare name; others get the source-parent
-    // prefix (gstack/cso -> gstack-cso), deterministic by compile order.
-    const firstParty = ops.find((op) => op.sourcePath.includes('/first-party/'));
-    const winner = firstParty ?? ops[0];
-    for (const op of ops) {
-      if (op === winner) continue;
-      const sourceParent = basename(dirname(dirname(op.sourcePath)));
-      const newPkg = `${sourceParent}-${pkg}`;
-      const idx = op.targetPath.lastIndexOf(`/${pkg}/`);
-      if (idx >= 0) {
-        op.targetPath = op.targetPath.slice(0, idx) + `/${newPkg}/` + op.targetPath.slice(idx + pkg.length + 2);
+
+  for (const [pkgName, byArtifact] of byPackageName) {
+    // One artifact owning the name is the normal case and needs no rename,
+    // however many files it contains.
+    if (byArtifact.size < 2) continue;
+    const artifactIds = [...byArtifact.keys()];
+    // First-party copy keeps the bare name; every other copy takes the
+    // source-parent prefix (gstack/cso -> gstack-cso), deterministic by
+    // compile order.
+    const firstParty = artifactIds.find((id) =>
+      (byArtifact.get(id) ?? []).some((op) => op.sourcePath.includes('/first-party/')),
+    );
+    const winner = firstParty ?? artifactIds[0];
+    for (const id of artifactIds) {
+      if (id === winner) continue;
+      const ops = byArtifact.get(id) ?? [];
+      const pkg = packageOf.get(id);
+      if (!pkg || ops.length === 0) continue;
+      // `library/third-party/gstack/cso` -> `gstack`, giving `gstack-cso`.
+      const sourceParent = basename(dirname(pkg.sourceRoot));
+      const newDir = join(dirname(pkg.dir), `${sourceParent}-${pkgName}`);
+      for (const op of ops) {
+        // Rewrite only the package segment; every member keeps the relative
+        // path its own SKILL.md refers to.
+        if (op.targetPath.startsWith(pkg.dir + '/')) {
+          op.targetPath = newDir + op.targetPath.slice(pkg.dir.length);
+        }
       }
+      packageOf.set(id, { name: basename(newDir), dir: newDir, sourceRoot: pkg.sourceRoot });
     }
   }
 }
