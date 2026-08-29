@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { searchCatalog } from '../../src/core/catalog/search';
 import { scanRoots } from '../../src/core/catalog/scanner';
@@ -96,4 +98,32 @@ test('multi-axis classification separates provenance, lifecycle, and modifiers',
   expect(classification.lifecycle).toBe('specialist');
   expect(classification.functions).toContain('planning');
   expect(classification.compositionRole).toBe('modifier');
+});
+
+describe('strict convention detection (junk is never catalogued)', () => {
+  test('source files, manifests, and non-convention configs produce no artifacts; check.sh does', async () => {
+    const { repo } = tempRepo();
+    const root = mkdtempSync(join(tmpdir(), 'qm-junk-'));
+    // The junk shapes that previously flooded the catalog (alembic-style
+    // migrations, TS snippets, repo manifests, bare MCP config).
+    writeFileSync(join(root, 'versions.py'), 'def upgrade():\n    pass\n');
+    writeFileSync(join(root, 'snippet.ts'), 'export const x = 1;\n');
+    writeFileSync(join(root, 'helper.sh'), '#!/bin/sh\necho hi\n');
+    writeFileSync(join(root, '.mcp.json'), '{}\n');
+    writeFileSync(join(root, 'mcp-servers.json'), '{}\n');
+    writeFileSync(join(root, 'package.json'), '{"name":"x","type":"module"}\n');
+    writeFileSync(join(root, 'hook-install.py'), '# placeholder\n');
+    writeFileSync(join(root, 'manifest.yaml'), 'name: not-an-agent\n');
+    // The one script convention.
+    writeFileSync(join(root, 'check.sh'), '#!/bin/sh\nset -eu\n');
+
+    const r = await scanRoots([root], repo);
+    expect(r.errors).toEqual([]);
+    const all = repo.listArtifacts();
+    expect(all.length).toBe(1);
+    expect(all[0]?.type).toBe('script');
+    expect(all[0]?.name).toBe('check.sh');
+    repo.close();
+    rmSync(root, { recursive: true, force: true });
+  });
 });

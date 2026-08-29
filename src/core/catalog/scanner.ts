@@ -2,8 +2,10 @@
 // Quartermaster — Catalog Scanner
 // Walks library roots, detects artifact types by convention,
 // computes hashes + organizational paths, and returns a ScanResult.
-// Detection is convention-driven (suffix/name) with sensible
-// fallbacks; metadata is parsed with js-yaml for robustness.
+// Detection matches only the eight artifact conventions (*.agent.yaml,
+// *.hook.yaml, *.mcp.json, *.command.md, plugin.yaml, SKILL.md, AGENTS.md,
+// check.sh). Anything else is content, not an artifact, and is never
+// catalogued; metadata is parsed with js-yaml for robustness.
 // ─────────────────────────────────────────────────────────────
 
 import { createHash } from 'node:crypto';
@@ -236,7 +238,7 @@ async function collectFiles(
   }
 
   for (const entry of entries) {
-    if (entry.startsWith('.') && entry !== '.mcp.json') continue; // skip hidden (except known config)
+    if (entry.startsWith('.')) continue; // skip hidden entries
     if (skip.includes(entry)) continue;
 
     const fullPath = `${dir}/${entry}`;
@@ -309,8 +311,8 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 2. Output style: AGENTS.md, CLAUDE.md, *.style.md
-  if (fileName === 'AGENTS.md' || fileName === 'CLAUDE.md' || lower.endsWith('.style.md')) {
+  // 2. Output style: AGENTS.md, *.style.md
+  if (fileName === 'AGENTS.md' || lower.endsWith('.style.md')) {
     const meta = await safeFrontmatter(filePath);
     return mk('output-style', str(meta.name) ?? stripExt(fileName), filePath, meta, [
       { type: 'output-style', dialect: 'generic' },
@@ -326,24 +328,25 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
       { type: 'skill', dialect: 'agent-md' },
     ]);
   }
-  // 4. Agent: *.agent.{yaml,yml}, manifest.{yaml,yml}
-  if (/\.agent\.ya?ml$/.test(lower) || lower === 'manifest.yaml' || lower === 'manifest.yml') {
+
+  // 4. Agent: *.agent.{yaml,yml}
+  if (/\.agent\.ya?ml$/.test(lower)) {
     const meta = await safeYaml(filePath);
     return mk('agent', str(meta.name) ?? basename(dirname(filePath)), filePath, meta, [
       { type: 'agent-config', dialect: 'generic' },
     ]);
   }
 
-  // 5. Hook: *.hook.{yaml,yml,json}, hook-*
-  if (/\.hook\.(ya?ml|json)$/.test(lower) || fileName.startsWith('hook-')) {
+  // 5. Hook: *.hook.{yaml,yml,json}
+  if (/\.hook\.(ya?ml|json)$/.test(lower)) {
     const meta = lower.endsWith('.json') ? await safeJson(filePath) : await safeYaml(filePath);
     return mk('hook', str(meta.name) ?? stripExt(fileName), filePath, meta, [
       { type: 'hooks', dialect: str(meta.dialect) ?? 'claude' },
     ]);
   }
 
-  // 6. MCP config: *.mcp.json, mcp-servers.json, .mcp.json
-  if (/\.mcp\.json$/.test(lower) || fileName === 'mcp-servers.json' || fileName === '.mcp.json') {
+  // 6. MCP config: *.mcp.json
+  if (/\.mcp\.json$/.test(lower)) {
     const cfg = await safeJson(filePath);
     const multi = Array.isArray(cfg) || typeof cfg.mcpServers === 'object';
     return mk('mcp-config', str(cfg.name) ?? fileName, filePath, { mcpType: multi ? 'multi' : 'single' }, [
@@ -351,24 +354,21 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 7. Plugin: plugin.{yaml,yml,json}, or package.json with a `type`
+  // 7. Plugin: plugin.{yaml,yml,json}
   if (lower === 'plugin.yaml' || lower === 'plugin.yml' || lower === 'plugin.json') {
     const meta = lower.endsWith('.json') ? await safeJson(filePath) : await safeYaml(filePath);
     return mk('plugin', str(meta.name) ?? basename(dirname(filePath)), filePath, meta, pluginCaps(meta));
   }
-  if (fileName === 'package.json') {
-    const pkg = await safeJson(filePath);
-    if (pkg.type) {
-      return mk('plugin', str(pkg.name) ?? basename(dirname(filePath)), filePath, pkg, pluginCaps(pkg));
-    }
+
+  // 8. Script: check.sh — the only script convention. Source files of any
+  //    language are content, not artifacts, and are never catalogued.
+  if (fileName === 'check.sh') {
+    return mk('script', fileName, filePath, {}, [{ type: 'scripts', dialect: 'bash' }]);
   }
 
-  // 8. Script: shell / interpreted executables
-  const lang = scriptLanguage(lower);
-  if (lang) return mk('script', fileName, filePath, {}, [{ type: 'scripts', dialect: lang }]);
-
-  return null; // unrecognized
+  return null; // not an artifact convention — never catalogued
 }
+
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -387,16 +387,6 @@ function pluginCaps(meta: Record<string, unknown>): Capability[] {
   const caps: Capability[] = components.map((c) => ({ type: c.type || 'unknown', dialect: 'plugin' }));
   if (components.some((c) => c.type === 'hook')) caps.push({ type: 'hooks', dialect: 'plugin' });
   return caps.length > 0 ? caps : [{ type: 'plugin', dialect: 'generic' }];
-}
-
-function scriptLanguage(lower: string): string | null {
-  if (lower.endsWith('.sh') || lower.endsWith('.bash')) return 'bash';
-  if (lower.endsWith('.zsh')) return 'zsh';
-  if (lower.endsWith('.py')) return 'python';
-  if (lower.endsWith('.rb')) return 'ruby';
-  if (lower.endsWith('.mjs') || lower.endsWith('.cjs') || lower.endsWith('.js')) return 'node';
-  if (lower.endsWith('.ts')) return 'typescript';
-  return null;
 }
 
 function stripExt(f: string): string {
