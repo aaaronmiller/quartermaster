@@ -1,5 +1,29 @@
 # Changelog
 
+
+## 2026-08-29 — Catalog repair: strict conventions + guidance/loaded-disabled (S1+S2)
+
+### Fixed
+- **Scanner catalogued content, not artifacts.** Extension catch-alls (every
+  `.py`/`.ts`/`.sh` as `script`, `hook-*` prefix, `manifest.yaml`,
+  `package.json`-with-`type` as plugin, bare `.mcp.json`) flooded the live
+  catalog with 10,764 junk entries (source trees, alembic migrations, TS
+  snippets). Detection now matches only the eight artifact conventions
+  (`*.agent.yaml`, `*.hook.yaml`, `*.mcp.json`, `*.command.md`, `plugin.yaml`,
+  `SKILL.md`, `AGENTS.md`, `check.sh`); everything else is content and is
+  never catalogued. Live rescan: catalog 12,421 → 1,657 artifacts, scan still
+  cron-compatible (rc=0, 26 s).
+- **Loaded/disabled was invisible** (FR-060s): `qm status <harness>` now
+  reports `state: { loaded, disabled }` — loaded = latest applied placements
+  whose targets resolve on disk; disabled = catalog artifacts that audit
+  deployable/transformable for the harness but are not deployed.
+
+### Added
+- **`guidance` artifact type (9th)**: `CLAUDE.md` and `SYSTEM-PROMPT.md`
+  catalog as guidance so QM can list/manage the master-rules chain
+  (`qm list --type guidance` → includes `first-party/quartermaster-guidance/
+  SYSTEM-PROMPT.md`); capability arm, `qm new` scaffold, fixture, and tests.
+
 ## Unreleased — Phases 11–17 (evaluation → acceptance)
 
 Completes the v3 task ledger (`specs/001-quartermaster/tasks.md`): 302/302 tasks
