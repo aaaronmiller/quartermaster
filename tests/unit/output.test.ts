@@ -102,10 +102,12 @@ describe('human rendering (renderHuman via emit)', () => {
   test('harness status renders in-sync/drifted/orphaned lines', () => {
     const logs = capture(() => emit(success('status', { harness: 'claude-code', deployed: [
       { artifactId: 'a', targetPath: '/t/a', method: 'link', inSync: true },
-    ], orphaned: ['/x/orphan.md'] }), false));
-    expect(logs[0]).toContain('1 deployed, 1 orphaned');
+    ], orphaned: ['/x/orphan.md'], stale: ['/x/stale.md'], drift: ['/x/dead.md'] }), false));
+    expect(logs[0]).toContain('1 deployed, 1 drift, 1 stale, 1 orphaned');
     expect(logs[0]).toContain('in-sync');
     expect(logs[0]).toContain('orphaned: /x/orphan.md');
+    expect(logs[0]).toContain('stale: /x/stale.md');
+    expect(logs[0]).toContain('drift: /x/dead.md');
   });
 
   test('config-like payloads degrade to key: value', () => {

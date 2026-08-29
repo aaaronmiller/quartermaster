@@ -348,6 +348,8 @@ function summarisePlacement(o: Record<string, unknown>): string {
 function renderStatus(o: Record<string, unknown>): string {
   const deployed = (o.deployed ?? []) as Array<Record<string, unknown>>;
   const orphaned = (o.orphaned ?? []) as Array<Record<string, unknown>>;
+  const stale = (o.stale ?? []) as Array<Record<string, unknown>>;
+  const drift = (o.drift ?? []) as Array<Record<string, unknown>>;
   const lines: string[] = [];
   const cap = (list: unknown[], item: (v: Record<string, unknown>, i: number) => string) => {
     const out: string[] = [];
@@ -364,10 +366,24 @@ function renderStatus(o: Record<string, unknown>): string {
     const sync = d.inSync === true ? 'in-sync' : 'drifted';
     return `  ${sync === 'in-sync' ? 'ok' : '!!'} ${String(d.artifactId ?? '?')} -> ${String(d.targetPath)} (${String(d.method ?? '')}) [${sync}]`;
   })) lines.push(d);
+  for (const d of cap(drift, (p) => {
+    const path = typeof p === 'string' ? p : String((p as Record<string, unknown>).targetPath ?? '?');
+    return `  !! drift: ${path} (deployed link whose target no longer resolves)`;
+  })) lines.push(d);
+  for (const s of cap(stale, (p) => {
+    const path = typeof p === 'string' ? p : String((p as Record<string, unknown>).targetPath ?? '?');
+    return `  ~~ stale: ${path}`;
+  })) lines.push(s);
   for (const or of cap(orphaned, (or) => {
     const path = typeof or === 'string' ? or : String((or as Record<string, unknown>).path ?? (or as Record<string, unknown>).targetPath ?? '?');
     return `  ?? orphaned: ${path}`;
   })) lines.push(or);
   if (lines.length === 0) return 'nothing deployed (no applied deployment recorded)';
-  return `${deployed.length} deployed, ${orphaned.length} orphaned:\n${lines.join('\n')}`;
+  const summary = [
+    `${deployed.length} deployed`,
+    `${drift.length} drift`,
+    `${stale.length} stale`,
+    `${orphaned.length} orphaned`,
+  ].join(', ');
+  return `${summary}:\n${lines.join('\n')}`;
 }

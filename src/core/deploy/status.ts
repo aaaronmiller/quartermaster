@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // Quartermaster — Harness Deployment Status (FR-060, FR-061)
-// Reports deployed artifacts, sync state vs library source,
-// and orphaned files in harness target directories.
+// Reports deployed artifacts, sync state vs library source, and classifies
+// unaccounted files in harness target directories as drift, stale, or orphaned.
 // ─────────────────────────────────────────────────────────────
 
 import type { DeploymentRecord, HarnessProfile } from '@core/types';
@@ -32,7 +32,12 @@ export interface DeployedArtifact {
 export interface HarnessStatus {
   harness: string;
   deployed: DeployedArtifact[];
+  /** Files present in target directories that no recorded deployment ever placed (foreign residue). */
   orphaned: string[];
+  /** Files a prior recorded deployment placed but the latest applied plan no longer covers (managed residue). */
+  stale: string[];
+  /** Managed links whose target no longer resolves: deployed drift, not unchanged artifacts. */
+  drift: string[];
   loadout: LoadoutStatus;
   lastDeployment?: DeploymentRecord;
 }
@@ -43,8 +48,9 @@ export interface HarnessStatus {
  * FR-060: Report which artifacts are deployed to a harness, by what method,
  * and whether each matches its library source (inSync) or has drifted.
  *
- * FR-061: Detect and report orphaned files — files present in target
- * directories that are not accounted for by any deployment record.
+ * FR-061: Detect and classify unaccounted files in target directories —
+ * drift (managed link whose target no longer resolves), stale (managed file
+ * the latest plan no longer covers), or orphaned (never deployed by qm).
  */
 export async function getHarnessStatus(
   harness: string,
@@ -52,6 +58,15 @@ export async function getHarnessStatus(
   profile: HarnessProfile,
 ): Promise<HarnessStatus> {
   const records = repo.getDeployments(harness);
+
+  // Every recorded deployment defines the managed surface of this harness,
+  // not just the newest one. When an artifact is removed from the catalog
+  // its operations vanish from fresh plans, but its deployed links remain
+  // on disk; only the record history knows they are ours.
+  const managedTargetPaths = new Set<string>();
+  for (const record of records) {
+    for (const op of record.plan.operations) managedTargetPaths.add(op.targetPath);
+  }
 
   // Find the most recent 'applied' deployment record.
   const lastApplied = records.find((r) => r.status === 'applied');
@@ -107,13 +122,20 @@ export async function getHarnessStatus(
     }
   }
 
-  // FR-061: Walk all target directories from the profile and collect orphans.
-  const orphaned = await findOrphanedFiles(profile, accountedTargetPaths);
+  // FR-061: Walk all target directories from the profile and classify every
+  // file the latest applied plan does not account for.
+  const { orphaned, stale, drift } = await classifyUnaccountedFiles(
+    profile,
+    accountedTargetPaths,
+    managedTargetPaths,
+  );
 
   return {
     harness,
     deployed,
     orphaned,
+    stale,
+    drift,
     loadout: new LoadoutManager(repo).status(harness),
     ...(lastDeployment !== undefined ? { lastDeployment } : {}),
   };
@@ -144,15 +166,22 @@ function artifactIdFromSourcePath(sourcePath: string): string {
 }
 
 /**
- * Walk all unique target directories declared in the harness profile
- * and collect file paths that are not present in `accountedPaths`.
- * Skips ignored basenames (.DS_Store, Thumbs.db, .gitkeep).
- * Handles missing directories gracefully.
+ * Walk all unique target directories declared in the harness profile and
+ * classify every file that is not present in `accountedPaths` (the latest
+ * applied plan):
+ * - `drift`: a managed link (recorded in any deployment) whose target no
+ *   longer resolves — the deployed stub is dead and the harness sees nothing;
+ * - `stale`: a managed file the latest plan no longer covers (residue
+ *   Quartermaster itself deployed earlier, not a foreign orphan);
+ * - `orphaned`: a file no recorded deployment ever placed.
+ * Skips ignored basenames (.DS_Store, Thumbs.db, .gitkeep, node_modules,
+ * .git, cache). Handles missing directories gracefully.
  */
-async function findOrphanedFiles(
+async function classifyUnaccountedFiles(
   profile: HarnessProfile,
   accountedPaths: Set<string>,
-): Promise<string[]> {
+  managedPaths: Set<string>,
+): Promise<{ orphaned: string[]; stale: string[]; drift: string[] }> {
   // Collect unique target directories from all artifact type locations.
   const targetDirs = new Set<string>();
   for (const atl of profile.artifactTypes) {
@@ -160,17 +189,18 @@ async function findOrphanedFiles(
     if (atl.locations.project) targetDirs.add(atl.locations.project);
   }
 
-  const orphaned: string[] = [];
+  const classified = { orphaned: [] as string[], stale: [] as string[], drift: [] as string[] };
 
   for (const dir of targetDirs) {
-    await walkDir(dir, accountedPaths, orphaned);
+    await walkDir(dir, accountedPaths, managedPaths, classified);
   }
 
-  return orphaned;
+  return classified;
 }
 
 /**
- * Recursively walk a directory, collecting files not in `accountedPaths`.
+ * Recursively walk a directory, classifying files not in `accountedPaths`
+ * into `classified.orphaned`, `classified.stale`, or `classified.drift`.
  * Silently returns on ENOENT (missing directory).
  * Uses lstat: symlinks are treated as leaves and never descended into,
  * which prevents infinite recursion through symlink loops (e.g. node_modules
@@ -179,7 +209,8 @@ async function findOrphanedFiles(
 async function walkDir(
   dirPath: string,
   accountedPaths: Set<string>,
-  orphaned: string[],
+  managedPaths: Set<string>,
+  classified: { orphaned: string[]; stale: string[]; drift: string[] },
 ): Promise<void> {
   let names: string[];
   try {
@@ -201,10 +232,28 @@ async function walkDir(
     }
 
     if (stat.isDirectory()) {
-      await walkDir(fullPath, accountedPaths, orphaned);
+      await walkDir(fullPath, accountedPaths, managedPaths, classified);
     } else if (stat.isFile() || stat.isSymbolicLink()) {
-      if (!accountedPaths.has(fullPath)) {
-        orphaned.push(fullPath);
+      if (accountedPaths.has(fullPath)) continue;
+
+      if (managedPaths.has(fullPath)) {
+        // FR-061 accounting: a file Quartermaster itself deployed in an
+        // earlier recorded deployment is managed residue, not a foreign
+        // orphan.
+        if (stat.isSymbolicLink()) {
+          try {
+            await fs.stat(fullPath);
+            classified.stale.push(fullPath);
+          } catch {
+            // FR-060: a deployed link whose target no longer resolves is
+            // drift, not an unchanged artifact.
+            classified.drift.push(fullPath);
+          }
+        } else {
+          classified.stale.push(fullPath);
+        }
+      } else {
+        classified.orphaned.push(fullPath);
       }
     }
   }

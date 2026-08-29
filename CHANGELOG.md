@@ -32,4 +32,10 @@ verified. Full suite 146 pass / 0 fail; typecheck + build clean.
   dead code.
 - Scan of 1000 artifacts exceeded the NFR-001 10s ceiling — batched per-artifact
   upserts into a single transaction (`Repository.transaction`).
+- Dangling deployed links (library source removed or moved) were invisible to
+  FR-060/FR-061: `qm status` counted them as ordinary orphans and the standing
+  scan/sync/deploy cycle never flagged or repaired them (QM-010). Managed
+  links that no longer resolve are now reported as `drift`; files earlier
+  deployments placed but the latest plan no longer covers are reported as
+  `stale`; only never-deployed files count as `orphaned` (QM-011).
 - Skill-body MCP references now infer the `mcp` capability (FR-004).
