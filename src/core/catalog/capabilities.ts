@@ -27,6 +27,8 @@ export function inferCapabilities(artifact: Artifact): Capability[] {
       return [{ type: 'commands', dialect: 'agent' }];
     case 'output-style':
       return [{ type: 'output-style', dialect: 'generic' }];
+    case 'guidance':
+      return [{ type: 'guidance', dialect: 'agent-md' }];
     default:
       return [];
   }

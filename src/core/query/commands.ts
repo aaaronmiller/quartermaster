@@ -252,6 +252,8 @@ export function scaffoldTemplate(type: ArtifactType, path: string): string | nul
       return `---\nname: ${baseName}\n---\n# ${baseName}\n`;
     case 'script':
       return '#!/usr/bin/env bash\nset -euo pipefail\n';
+    case 'guidance':
+      return `---\nname: ${baseName}\ndescription: Master rules guidance\n---\n# ${baseName}\n`;
     default:
       return null;
   }
@@ -265,7 +267,7 @@ export function scaffoldTemplate(type: ArtifactType, path: string): string | nul
 export function scaffoldArtifact(type: ArtifactType, rawPath: string, root?: string): ScaffoldResult {
   const content = scaffoldTemplate(type, rawPath);
   if (content === null) {
-    throw new Error(`unsupported artifact type: ${type}. Valid types: skill, plugin, agent, hook, script, mcp-config, slash-command, output-style.`);
+    throw new Error(`unsupported artifact type: ${type}. Valid types: skill, plugin, agent, hook, script, mcp-config, slash-command, output-style, guidance.`);
   }
   const config = loadConfig();
   // Prefer an explicit root, then the canonical git-tracked authoring root

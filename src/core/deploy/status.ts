@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { DeploymentRecord, HarnessProfile } from '@core/types';
+import { computeVerdict, loadVerdictOverrides } from '@core/audit/auditor';
 import { LoadoutManager, type LoadoutStatus } from '@core/loadouts/loadouts';
 import type { Repository } from '@storage/repository';
 import { createHash } from 'crypto';
@@ -38,6 +39,12 @@ export interface HarnessStatus {
   stale: string[];
   /** Managed links whose target no longer resolves: deployed drift, not unchanged artifacts. */
   drift: string[];
+  /** Loaded vs disabled accounting (FR-060s). `loaded` = placements of the
+   * latest applied deployment whose targets resolve on disk (the artifact is
+   * live in this harness). `disabled` = catalog artifacts that audit as
+   * deployable or transformable for this harness but are not deployed —
+   * in the library, not loaded. */
+  state: { loaded: number; disabled: number };
   loadout: LoadoutStatus;
   lastDeployment?: DeploymentRecord;
 }
@@ -130,12 +137,29 @@ export async function getHarnessStatus(
     managedTargetPaths,
   );
 
+  // FR-060s: loaded/disabled accounting. Loaded = placements of the latest
+  // applied deployment whose targets resolve on disk (deployedHash empty
+  // marks a drifted placement). Disabled = catalog artifacts that audit as
+  // deployable or transformable for this harness but are not deployed.
+  const loaded = deployed.filter((entry) => entry.deployedHash !== '').length;
+  const deployedSourcePaths = new Set(
+    (lastApplied?.plan.operations ?? []).map((op) => op.sourcePath),
+  );
+  const overrides = loadVerdictOverrides(repo);
+  let disabled = 0;
+  for (const artifact of repo.listArtifacts()) {
+    if (deployedSourcePaths.has(artifact.path)) continue;
+    if (computeVerdict(artifact, profile, overrides).verdict !== 'incompatible') disabled += 1;
+  }
+
+
   return {
     harness,
     deployed,
     orphaned,
     stale,
     drift,
+    state: { loaded, disabled },
     loadout: new LoadoutManager(repo).status(harness),
     ...(lastDeployment !== undefined ? { lastDeployment } : {}),
   };

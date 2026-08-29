@@ -25,7 +25,8 @@ export type ArtifactType =
   | 'mcp-config'
   | 'slash-command'
   | 'output-style'
-  | 'script';
+  | 'script'
+  | 'guidance';
 
 /** All artifact type values for iteration. */
 export const ARTIFACT_TYPES: readonly ArtifactType[] = [
@@ -35,8 +36,8 @@ export const ARTIFACT_TYPES: readonly ArtifactType[] = [
   'hook',
   'mcp-config',
   'slash-command',
-  'output-style',
   'script',
+  'guidance',
 ] as const;
 
 // ─── Source ─────────────────────────────────────────────────

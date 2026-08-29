@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { searchCatalog } from '../../src/core/catalog/search';
@@ -123,6 +123,35 @@ describe('strict convention detection (junk is never catalogued)', () => {
     expect(all.length).toBe(1);
     expect(all[0]?.type).toBe('script');
     expect(all[0]?.name).toBe('check.sh');
+    repo.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe('guidance artifact type (S2)', () => {
+  test('CLAUDE.md fixture is catalogued as guidance with declared metadata', async () => {
+    const { repo } = tempRepo();
+    await scanRoots([copyFixtureLibrary()], repo);
+    const guidance = repo.listArtifacts({ type: 'guidance' });
+    expect(guidance.length).toBe(1);
+    expect(guidance[0]?.name).toBe('Fixture Guidance');
+    expect(guidance[0]?.metadata.description).toContain('guidance artifact type');
+    repo.close();
+  });
+
+  test('SYSTEM-PROMPT.md and CLAUDE.md are guidance; AGENTS.md stays an output-style', async () => {
+    const { repo } = tempRepo();
+    const root = mkdtempSync(join(tmpdir(), 'qm-guidance-'));
+    mkdirSync(join(root, 'sub'), { recursive: true });
+    writeFileSync(join(root, 'SYSTEM-PROMPT.md'), '# Master rules\n');
+    writeFileSync(join(root, 'CLAUDE.md'), '# Rules\n');
+    writeFileSync(join(root, 'sub', 'CLAUDE.md'), '# Nested rules\n');
+    writeFileSync(join(root, 'AGENTS.md'), '# Agent style\n');
+    await scanRoots([root], repo);
+    expect(repo.listArtifacts({ type: 'guidance' }).length).toBe(3);
+    const styles = repo.listArtifacts({ type: 'output-style' });
+    expect(styles.length).toBe(1);
+    expect(styles[0]?.path.endsWith('/AGENTS.md')).toBe(true);
     repo.close();
     rmSync(root, { recursive: true, force: true });
   });

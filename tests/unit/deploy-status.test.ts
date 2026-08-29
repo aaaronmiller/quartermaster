@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, symlinkSync, unlinkSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getHarnessStatus } from '../../src/core/deploy/status';
-import type { HarnessProfile } from '../../src/core/types';
+import type { Artifact, HarnessProfile } from '../../src/core/types';
 import { tempRepo } from '../helpers';
 
 function makeProfile(skillDir: string): HarnessProfile {
@@ -136,6 +136,63 @@ describe('getHarnessStatus unaccounted-file classification', () => {
     expect(status.stale).toContain(target);
     expect(status.drift).not.toContain(target);
     expect(status.orphaned).not.toContain(target);
+    repo.close();
+  });
+});
+
+describe('getHarnessStatus loaded/disabled state (FR-060s)', () => {
+  function artifact(overrides: Partial<Artifact> = {}): Artifact {
+    return {
+      id: 'skill-1',
+      type: 'skill',
+      name: 'Skill',
+      path: '/library/skill/SKILL.md',
+      organizationalPath: 'skill',
+      hash: 'hash',
+      size: 1,
+      metadata: {},
+      source: { kind: 'self', path: '/library/skill/SKILL.md' },
+      capabilities: [{ type: 'skill', dialect: 'agent-md' }],
+      importedAt: '2026-08-29T00:00:00Z',
+      updatedAt: '2026-08-29T00:00:00Z',
+      provenance: 'self:/library/skill/SKILL.md',
+      ...overrides,
+    };
+  }
+
+  test('loaded counts resolving placements; disabled counts loadable-but-not-deployed artifacts', async () => {
+    const { repo } = tempRepo();
+    const root = mkdtempSync(join(tmpdir(), 'qm-state-'));
+    const skillDir = join(root, 'skills');
+    const libDir = join(root, 'library');
+    mkdirSync(join(skillDir, 'deployed-skill'), { recursive: true });
+    mkdirSync(join(libDir, 'deployed-skill'), { recursive: true });
+    mkdirSync(join(libDir, 'disabled-skill'), { recursive: true });
+
+    const deployedSource = join(libDir, 'deployed-skill', 'SKILL.md');
+    const disabledSource = join(libDir, 'disabled-skill', 'SKILL.md');
+    const hookSource = join(libDir, 'hook.yaml');
+    writeFileSync(deployedSource, 'deployed');
+    writeFileSync(disabledSource, 'disabled');
+    writeFileSync(hookSource, 'dialect: claude\n');
+
+    repo.upsertArtifact(artifact({ id: 'deployed-1', path: deployedSource, source: { kind: 'self', path: deployedSource } }));
+    repo.upsertArtifact(artifact({ id: 'disabled-1', path: disabledSource, source: { kind: 'self', path: disabledSource } }));
+    repo.upsertArtifact(artifact({ id: 'hook-1', type: 'hook', path: hookSource, source: { kind: 'self', path: hookSource }, capabilities: [{ type: 'hooks', dialect: 'claude' }] }));
+
+    const target = join(skillDir, 'deployed-skill', 'SKILL.md');
+    symlinkSync(deployedSource, target);
+    const profile = { ...makeProfile(skillDir), capabilities: [{ type: 'skill', dialects: ['agent-md'] }] };
+    repo.recordDeployment(record('r1', 'test-harness', '2026-08-29T00:00:00Z', [
+      { sourcePath: deployedSource, targetPath: target, method: 'link' },
+    ]));
+
+    const status = await getHarnessStatus('test-harness', repo, profile);
+
+    // The deployed skill resolves: loaded. The library-only skill audits
+    // deployable but is not deployed: disabled. The hook is incompatible
+    // with this skill-only harness, so it counts as neither.
+    expect(status.state).toEqual({ loaded: 1, disabled: 1 });
     repo.close();
   });
 });

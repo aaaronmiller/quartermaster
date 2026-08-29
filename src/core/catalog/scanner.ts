@@ -4,8 +4,9 @@
 // computes hashes + organizational paths, and returns a ScanResult.
 // Detection matches only the eight artifact conventions (*.agent.yaml,
 // *.hook.yaml, *.mcp.json, *.command.md, plugin.yaml, SKILL.md, AGENTS.md,
-// check.sh). Anything else is content, not an artifact, and is never
-// catalogued; metadata is parsed with js-yaml for robustness.
+// check.sh) plus the guidance rules files (CLAUDE.md, SYSTEM-PROMPT.md).
+// Anything else is content, not an artifact, and is never catalogued;
+// metadata is parsed with js-yaml for robustness.
 // ─────────────────────────────────────────────────────────────
 
 import { createHash } from 'node:crypto';
@@ -319,7 +320,17 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 3. Skill package entrypoint: SKILL.md or a standalone *.skill.md file.
+  // 3. Guidance rules file: CLAUDE.md, SYSTEM-PROMPT.md — the master-rules
+  //    chain Quartermaster manages. AGENTS.md stays an output-style above
+  //    because the canonical fixture defines it that way.
+  if (fileName === 'CLAUDE.md' || fileName === 'SYSTEM-PROMPT.md') {
+    const meta = await safeFrontmatter(filePath);
+    return mk('guidance', str(meta.name) ?? fileName, filePath, meta, [
+      { type: 'guidance', dialect: 'agent-md' },
+    ]);
+  }
+
+  // 4. Skill package entrypoint: SKILL.md or a standalone *.skill.md file.
   if (lower === 'skill.md' || lower.endsWith('.skill.md')) {
     const content = await readText(filePath);
     const meta = content.startsWith('---') ? parseFrontmatter(content) : {};
@@ -329,7 +340,7 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 4. Agent: *.agent.{yaml,yml}
+  // 5. Agent: *.agent.{yaml,yml}
   if (/\.agent\.ya?ml$/.test(lower)) {
     const meta = await safeYaml(filePath);
     return mk('agent', str(meta.name) ?? basename(dirname(filePath)), filePath, meta, [
@@ -337,7 +348,7 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 5. Hook: *.hook.{yaml,yml,json}
+  // 6. Hook: *.hook.{yaml,yml,json}
   if (/\.hook\.(ya?ml|json)$/.test(lower)) {
     const meta = lower.endsWith('.json') ? await safeJson(filePath) : await safeYaml(filePath);
     return mk('hook', str(meta.name) ?? stripExt(fileName), filePath, meta, [
@@ -345,7 +356,7 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 6. MCP config: *.mcp.json
+  // 7. MCP config: *.mcp.json
   if (/\.mcp\.json$/.test(lower)) {
     const cfg = await safeJson(filePath);
     const multi = Array.isArray(cfg) || typeof cfg.mcpServers === 'object';
@@ -354,13 +365,13 @@ async function detectArtifactType(filePath: string): Promise<DetectedArtifact | 
     ]);
   }
 
-  // 7. Plugin: plugin.{yaml,yml,json}
+  // 8. Plugin: plugin.{yaml,yml,json}
   if (lower === 'plugin.yaml' || lower === 'plugin.yml' || lower === 'plugin.json') {
     const meta = lower.endsWith('.json') ? await safeJson(filePath) : await safeYaml(filePath);
     return mk('plugin', str(meta.name) ?? basename(dirname(filePath)), filePath, meta, pluginCaps(meta));
   }
 
-  // 8. Script: check.sh — the only script convention. Source files of any
+  // 9. Script: check.sh — the only script convention. Source files of any
   //    language are content, not artifacts, and are never catalogued.
   if (fileName === 'check.sh') {
     return mk('script', fileName, filePath, {}, [{ type: 'scripts', dialect: 'bash' }]);
