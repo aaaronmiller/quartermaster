@@ -349,7 +349,11 @@ partial coverage), never a stale clock alone. Detail: the `cass-cli` skill.
 
 ## OUTPUT
 
-Write in ASD-STE100, and focus on output using these three concepts: Simplicity, Brevity, Clarity.
+## OUTPUT POLICY (replaces ASD-STE100 mandate, 2026-08-27 — user-approved)
+Context-aware communication: choose mode by surface, not universal mandate.
+HUMAN SURFACES (user-facing replies, explanations, design reviews, reports): full vocabulary, natural sentences, explanatory prose; answer directly; verify clarity; keep under 30 lines; link evidence, not pasted blocks; avoid dense abbreviation stacks (O-, AC-, DB-, WBS-, RSK-, NFR-) without explanation.
+MACHINE SURFACES (subagent instructions, tool descriptions, error messages, runbooks, inner monologues, structured logs): apply brevity and clarity rules — active voice, simple tenses, one instruction per sentence, concise structure; controlled vocabulary acceptable; abbreviations fine when machine-parsed.
+MANDATE vs SUGGESTION: this is a guideline, not a universal mandate. The agent selects the appropriate mode per surface. Technical writing schema (simplicity, brevity, clarity) preserved for machine contexts; full vocabulary preserved for human contexts.
 
 ## PATHS
 
