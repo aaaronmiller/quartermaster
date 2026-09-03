@@ -1,0 +1,78 @@
+# Per-Harness Delivery Matrix — D3.8
+# One registry, many deliveries. How skills are surfaced per harness
+# and whether Level-0 metadata is available natively or must be injected.
+# Source: profiles/*.yaml + src/core/skills/matrix.ts
+
+version: 1
+generated: 2026-09-02
+registry: single
+harnesses:
+  - harness: claude-code
+    skillInjection: native
+    level0Available: true
+    mechanism: "CLAUDE.md + skill tool injection"
+    notes: "native Level-0 via bundled skills manifest"
+  - harness: codex
+    skillInjection: injected
+    level0Available: false
+    mechanism: "AGENTS.md + qm query search injected"
+    notes: "Level-0 must be injected via prompt overlay"
+  - harness: hermes
+    skillInjection: injected
+    level0Available: false
+    mechanism: "SYSTEM-PROMPT.md overlay + qm query"
+    notes: "Hermes skill loader lacks native Level-0 manifest"
+  - harness: opencode
+    skillInjection: native
+    level0Available: true
+    mechanism: "opencode.yaml skill registry"
+    notes: ""
+  - harness: omp
+    skillInjection: native
+    level0Available: true
+    mechanism: "omp skill registry (gstack family)"
+    notes: ""
+  - harness: gemini
+    skillInjection: injected
+    level0Available: false
+    mechanism: "AGENTS.md injected"
+    notes: ""
+  - harness: qwen
+    skillInjection: injected
+    level0Available: false
+    mechanism: "AGENTS.md injected"
+    notes: ""
+  - harness: kilocode
+    skillInjection: injected
+    level0Available: false
+    mechanism: "AGENTS.md injected"
+    notes: ""
+  - harness: pi
+    skillInjection: injected
+    level0Available: false
+    mechanism: "pi skills manifest (partial native)"
+    notes: "Level-0 partially native for pi skills only"
+  - harness: antigravity
+    skillInjection: injected
+    level0Available: false
+    mechanism: "antigravity skill file injection"
+    notes: ""
+  - harness: ante
+    skillInjection: unsupported
+    level0Available: false
+    mechanism: "no skill injection currently"
+    notes: "ante harness has no skill surface yet"
+  - harness: openclaw
+    skillInjection: injected
+    level0Available: false
+    mechanism: "CLAUDE.md overlay"
+    notes: ""
+  - harness: muse
+    skillInjection: native
+    level0Available: true
+    mechanism: "muse skill manifest"
+    notes: ""
+
+# Also exposed as `qm skill matrix [--harness]` and `qm skill matrix --json`
+# The matrix is derived from profiles/*.yaml + loadConfig().harnesses —
+# a capability renames requires no source change (adapter_id pattern from Component 2).

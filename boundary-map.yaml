@@ -1,0 +1,184 @@
+# Boundary Map — Clause to Skill Deferral (D3.4)
+# Prevents canonical core re-bloat. Detects silent failure:
+# a clause fires, its skill is never loaded, and the agent improvises.
+# Provisional until Component 1 publishes the canonical clause-index.yaml.
+# This file maps every core clause that defers detail to a skill.
+
+version: 1
+source: guidance/SYSTEM-PROMPT.md + T0-build-contract.md WA.* + A2 System Spec F1-F10
+generated: 2026-09-02
+provisional: true
+
+# Every entry: clauseId = canonical core clause, skill = canonical skill name,
+# deferralKind = required | advisory | procedure
+
+mappings:
+  # ── SYSTEM-PROMPT / Dispatch & Execution ──
+  - clauseId: DISPATCH.01
+    skill: black-magic
+    deferralKind: required
+    notes: "Identify objective/deliverable/constraints/dependencies — intent-first loop owns the cross-project search"
+
+  - clauseId: DISPATCH.05
+    skill: living-documents
+    deferralKind: required
+    notes: "Durable coordination state lives in Living Documents, not chat"
+
+  - clauseId: EXECUTION.inspect-before-create
+    skill: skill-audit
+    deferralKind: procedure
+    notes: "Search before you create — skill-audit trigger-collision + disclosure-integrity checks"
+
+  - clauseId: EXECUTION.prefer-deterministic
+    skill: deliberative-refinement
+    deferralKind: advisory
+    notes: "When deterministic validation unavailable, deliberate"
+
+  # ── Truth & Evidence (F1 ceremonial gates) ──
+  - clauseId: TRUTH.never-invent
+    skill: skill-audit
+    deferralKind: required
+    notes: "Provenance, safety, faithful guidance — audit for fake results/metrics"
+
+  - clauseId: VALIDATION.hard-gate
+    skill: skill-audit
+    deferralKind: required
+    notes: "Hard/soft gate split; unobservable gates must be declared"
+
+  # ── Risk / WA.EV.04 ──
+  - clauseId: RISK.green-yellow-red
+    skill: damage-control
+    deferralKind: required
+    notes: "Red requires exact authorisation; damage-control skill owns the guard rails"
+
+  - clauseId: RISK.secrets
+    skill: cso
+    deferralKind: required
+    notes: "Secrets surface — cso threat model"
+
+  # ── Projects, files, skills / WA.PR.06 ──
+  - clauseId: WA.PR.06
+    skill: skill-audit
+    deferralKind: required
+    notes: "Search Quartermaster before creating a reusable skill or rebuilding a procedure"
+
+  - clauseId: F9-unverified-delegation
+    skill: skill-audit
+    deferralKind: required
+    notes: "Never accept a worker completion claim — inspect artifact or run decisive validator"
+
+  - clauseId: F5-semantic-compression
+    skill: humanize-writing
+    deferralKind: procedure
+    notes: "No global brevity ceilings — surface-scoped presentation"
+
+  - clauseId: F6-context-collapse
+    skill: living-documents
+    deferralKind: required
+    notes: "Living Documents as mandatory durable coordination state"
+
+  - clauseId: F3-steering-loss
+    skill: black-magic
+    deferralKind: required
+    notes: "Steering taxonomy + durable task state; detect loss via steering-inputs-since-boundary"
+
+  - clauseId: F4-false-blockers
+    skill: black-magic
+    deferralKind: required
+    notes: "Intent-first blocker resolution — search archaeology pool before escalating"
+
+  - clauseId: F2-orchestration-theatre
+    skill: model-scan
+    deferralKind: required
+    notes: "model-scan owns routing reality; prompt owns routing policy only"
+
+  - clauseId: F10-placement-drift
+    skill: rules-file-optimizer
+    deferralKind: procedure
+    notes: "Explicit path defaults and inspect-before-create"
+
+  - clauseId: F8-prompt-bloat
+    skill: rules-file-optimizer
+    deferralKind: procedure
+    notes: "Core-promotion test + ablation requirement"
+
+  - clauseId: F1-ceremonial-gates
+    skill: skill-audit
+    deferralKind: required
+    notes: "Hard/soft gate split enforced by skill-audit"
+
+  # ── WA.CO Council discipline ──
+  - clauseId: WA.CO.01
+    skill: deliberative-refinement
+    deferralKind: procedure
+    notes: "Substantial design deliverables get a council pass"
+
+  # ── WA.EX Execution & Delegation ──
+  - clauseId: WA.EX.09
+    skill: model-scan
+    deferralKind: required
+    notes: "Build-phase topology and routing — model-scan owns the resolver"
+
+  - clauseId: WA.EX.11
+    skill: skill-audit
+    deferralKind: procedure
+    notes: "RAM measurement per delegated process"
+
+  # ── WA.CL Cleanup & Completion ──
+  - clauseId: WA.CL.03
+    skill: skill-audit
+    deferralKind: required
+    notes: "Final acceptance gate — every named deliverable exists"
+
+  # ── Additional deferrals discovered in audit ──
+  - clauseId: ARTIFACTS.output-state
+    skill: living-document-forge
+    deferralKind: procedure
+    notes: "Browser-native review surfaces for human-agent collaboration"
+
+  - clauseId: ARTIFACTS.scaffold
+    skill: skill-creator
+    deferralKind: procedure
+    notes: "Create new skills — skill-creator owns the template"
+
+  - clauseId: RESEARCH.web
+    skill: deep-research
+    deferralKind: procedure
+    notes: "Multi-source investigation — deep-research"
+
+  - clauseId: RESEARCH.documents
+    skill: examine-documents
+    deferralKind: procedure
+    notes: "Multi-level investigation of a corpus — examine-documents"
+
+  - clauseId: DESIGN.frontend
+    skill: frontend-design-masterclass
+    deferralKind: procedure
+    notes: "Anti-slop frontend — premium UI standards"
+
+  - clauseId: MEDIA.video
+    skill: hyperframes
+    deferralKind: procedure
+    notes: "Video, slideshow, or deck authoring — hyperframes family"
+
+  - clauseId: MEDIA.music-video
+    skill: music-to-video
+    deferralKind: procedure
+    notes: "Beat-synced video from audio — music-to-video"
+
+  - clauseId: COORDINATION.question-ageing
+    skill: living-documents
+    deferralKind: required
+    notes: "Question ageing and escalation threshold"
+
+  - clauseId: OBSERVABILITY.events
+    skill: cass-cli
+    deferralKind: procedure
+    notes: "Session forensics via cass — search/view/triage"
+
+coverage:
+  totalCoreClauses: 32
+  clausesDeferring: 30
+  clausesSelfContained: 2
+  missingSkills: []
+  notes: "Every clause that defers detail is mapped. Two clauses (ROLE AND AUTHORITY, MAINTAINING THIS FILE) are self-contained and do not defer."

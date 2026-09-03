@@ -1,0 +1,99 @@
+{"query": "audit my skills for duplicates and junk", "expectedSkill": "skill-audit"}
+{"query": "find junk skills and clean up", "expectedSkill": "skill-audit"}
+{"query": "which skills should I keep", "expectedSkill": "skill-audit"}
+{"query": "organize my project folder", "expectedSkill": "black-magic"}
+{"query": "working a punchlist and blocked", "expectedSkill": "black-magic"}
+{"query": "humanize this text it sounds like AI", "expectedSkill": "humanize-writing"}
+{"query": "make this sound human more natural", "expectedSkill": "humanize-writing"}
+{"query": "search my sessions and prior work", "expectedSkill": "cass-cli"}
+{"query": "past conversations what did I ask for", "expectedSkill": "cass-cli"}
+{"query": "review this PR for security vulnerabilities", "expectedSkill": "codex"}
+{"query": "deploy my app to production", "expectedSkill": "vercel-deploy"}
+{"query": "help me decide which approach to take", "expectedSkill": "deliberative-refinement"}
+{"query": "think through this design decision", "expectedSkill": "deliberative-refinement"}
+{"query": "create a viral post for twitter", "expectedSkill": "create-viral-content"}
+{"query": "make this go viral on social media", "expectedSkill": "create-viral-content"}
+{"query": "build an MCP server", "expectedSkill": "mcp-toolkit"}
+{"query": "create an MCP integration", "expectedSkill": "mcp-toolkit"}
+{"query": "generate an image of a landing page", "expectedSkill": "imagegen"}
+{"query": "make me a GIF for slack", "expectedSkill": "slack-gif-creator"}
+{"query": "design a premium frontend UI", "expectedSkill": "frontend-design-masterclass"}
+{"query": "make it look like Stripe", "expectedSkill": "design-taste-frontend"}
+{"query": "create algorithmic art with p5.js", "expectedSkill": "algorithmic-art"}
+{"query": "find nearby restaurants", "expectedSkill": "find-nearby"}
+{"query": "search the web for latest docs", "expectedSkill": "parallel-web-search"}
+{"query": "research this topic deeply with multiple sources", "expectedSkill": "deep-research"}
+{"query": "examine these documents and synthesize", "expectedSkill": "examine-documents"}
+{"query": "create a powerpoint presentation", "expectedSkill": "powerpoint"}
+{"query": "make a PDF from this content", "expectedSkill": "pdf"}
+{"query": "deploy to vercel", "expectedSkill": "vercel-deploy"}
+{"query": "scrape data from this website", "expectedSkill": "scraper-builder"}
+{"query": "extract data from amazon products", "expectedSkill": "brightdata-sdk"}
+{"query": "is this funny refinement", "expectedSkill": "is-it-funny-refinement"}
+{"query": "make it funny satirical", "expectedSkill": "make-it-funny"}
+{"query": "create a game mechanic for my RPG", "expectedSkill": "game-mechanics-design"}
+{"query": "sync my git repos", "expectedSkill": "git-audit-sync"}
+{"query": "audit my git status across projects", "expectedSkill": "git-audit-sync"}
+{"query": "optimize my rules file is too long", "expectedSkill": "rules-file-optimizer"}
+{"query": "my CLAUDE.md is bloat", "expectedSkill": "rules-file-optimizer"}
+{"query": "generate tests for this code TDD", "expectedSkill": "test-driven-development"}
+{"query": "write unit tests", "expectedSkill": "testing-patterns"}
+{"query": "review my skill description trigger coverage", "expectedSkill": "skill-audit"}
+{"query": "audit skill quality and description", "expectedSkill": "skill-audit"}
+{"query": "fix merge conflicts", "expectedSkill": "fix-merge-conflicts"}
+{"query": "debug this bug systematically", "expectedSkill": "systematic-debugging"}
+{"query": "what did I ask for in the past transcript", "expectedSkill": "intent-archaeology"}
+{"query": "recover my intent from sessions", "expectedSkill": "intent-archaeology"}
+{"query": "manage my linear issues", "expectedSkill": "linear"}
+{"query": "search for YouTube transcript", "expectedSkill": "youtube-transcript-extraction"}
+{"query": "convert this transcript to obsidian", "expectedSkill": "yt-transcript-obsidian-artifact"}
+{"query": "turn this into a PRD spec", "expectedSkill": "spec-workflow"}
+{"query": "spec this out for a new project", "expectedSkill": "spec-workflow"}
+{"query": "create a new project from idea to spec", "expectedSkill": "strata-authoring"}
+{"query": "weave intent into my spec", "expectedSkill": "strata"}
+{"query": "write a living document for my project", "expectedSkill": "living-documents"}
+{"query": "build a kanban swarm of agents", "expectedSkill": "clawteam"}
+{"query": "coordinate multiple agents in parallel", "expectedSkill": "dispatching-parallel-agents"}
+{"query": "create a notion page", "expectedSkill": "notion"}
+{"query": "extract text from PDF", "expectedSkill": "ocr-and-documents"}
+{"query": "animate this with GSAP", "expectedSkill": "gsap-core"}
+{"query": "scroll trigger animation", "expectedSkill": "gsap-scrolltrigger"}
+{"query": "make a slideshow presentation", "expectedSkill": "slideshow"}
+{"query": "turn my github PR into a video", "expectedSkill": "pr-to-video"}
+{"query": "add captions to my talking head video", "expectedSkill": "embedded-captions"}
+{"query": "turn music track into beat-synced video", "expectedSkill": "music-to-video"}
+{"query": "audit competitor pricing", "expectedSkill": "competitive-intel"}
+{"query": "what is the internet saying about my brand", "expectedSkill": "brand-listening"}
+{"query": "search arXiv papers", "expectedSkill": "arxiv"}
+{"query": "find a Seattle startup job", "expectedSkill": "aaron-job-search"}
+{"query": "search nearby places openstreetmap", "expectedSkill": "find-nearby"}
+{"query": "create a weekly report for my dad", "expectedSkill": "weekly-report-suite"}
+{"query": "run a security audit owasp", "expectedSkill": "security-audit"}
+{"query": "setup hermes agent", "expectedSkill": "hermes-agent-setup"}
+{"query": "check agent compatibility across harnesses", "expectedSkill": "check-agent-compatibility"}
+{"query": "improve my agent prompt", "expectedSkill": "agent-creator"}
+{"query": "create a plugin for claude code", "expectedSkill": "plugin-validator"}
+{"query": "design a high end visual brand", "expectedSkill": "brandkit"}
+{"query": "build an excalidraw diagram", "expectedSkill": "excalidraw"}
+{"query": "create a mind map canvas", "expectedSkill": "json-canvas"}
+{"query": "score my code review aggressively", "expectedSkill": "thermo-nuclear-code-quality-review"}
+{"query": "make a product launch video", "expectedSkill": "product-launch-video"}
+{"query": "turn my website into a video tour", "expectedSkill": "website-to-video"}
+{"query": "style my CLI with colors and tables", "expectedSkill": "cli-tui-styling"}
+{"query": "verify this claim with evidence", "expectedSkill": "verify-this"}
+{"query": "what was decided in previous sessions", "expectedSkill": "cass-cli"}
+{"query": "intense brainstorm session for my idea", "expectedSkill": "brainstorming"}
+{"query": "write the plan before coding", "expectedSkill": "writing-plans"}
+{"query": "review my PR diff walkthrough", "expectedSkill": "pr-review-canvas"}
+{"query": "optimize database queries postgres", "expectedSkill": "db-optimization"}
+{"query": "check seo issues on my site", "expectedSkill": "seo-audit"}
+{"query": "manage my s3 buckets", "expectedSkill": "s3-file-operations"}
+{"query": "build an MCP app with UI", "expectedSkill": "build-mcp-app"}
+{"query": "port my remotion video to hyperframes", "expectedSkill": "remotion-to-hyperframes"}
+{"query": "analyze my codebase knowledge graph", "expectedSkill": "understand"}
+{"query": "create a learning path for me", "expectedSkill": "create-learning-path"}
+{"query": "run Hermès heartbeat scheduling", "expectedSkill": "hermes-heartbeat"}
+{"query": "extract domain knowledge from code", "expectedSkill": "understand-domain"}
+{"query": "build a mechanism instrument for foundry", "expectedSkill": "mechanism-forge"}
+{"query": "audit my skill trigger phrases collision", "expectedSkill": "skill-audit"}
+{"query": "fix my hybrid nextjs routing", "expectedSkill": "frontend-design-masterclass"}
