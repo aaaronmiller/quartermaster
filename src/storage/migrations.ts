@@ -184,6 +184,59 @@ export const MIGRATIONS: Migration[] = [
       DROP INDEX IF EXISTS idx_artifact_alias_target;
     `,
   },
+  {
+    version: 6,
+    name: 'skill-registry-level0-events-gaps',
+    up: `
+      CREATE TABLE IF NOT EXISTS skill_states (
+        artifactId   TEXT PRIMARY KEY,
+        status       TEXT NOT NULL,
+        reason       TEXT,
+        supersededBy TEXT,
+        updatedAt    TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_skill_states_status ON skill_states(status);
+
+      CREATE TABLE IF NOT EXISTS skill_events (
+        id              TEXT PRIMARY KEY,
+        skill           TEXT NOT NULL,
+        version         TEXT,
+        trigger         TEXT NOT NULL,
+        openedPastLevel0 INTEGER NOT NULL,
+        outcome         TEXT,
+        clauseId        TEXT,
+        timestamp       TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_skill_events_skill ON skill_events(skill);
+      CREATE INDEX IF NOT EXISTS idx_skill_events_timestamp ON skill_events(timestamp);
+
+      CREATE TABLE IF NOT EXISTS skill_gaps (
+        id          TEXT PRIMARY KEY,
+        capability  TEXT NOT NULL,
+        context     TEXT NOT NULL,
+        createdAt   TEXT NOT NULL,
+        createdBy   TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'open'
+      );
+      CREATE INDEX IF NOT EXISTS idx_skill_gaps_capability ON skill_gaps(capability);
+      CREATE INDEX IF NOT EXISTS idx_skill_gaps_status ON skill_gaps(status);
+
+      CREATE TABLE IF NOT EXISTS skill_queries_log (
+        id          TEXT PRIMARY KEY,
+        queryText   TEXT,
+        capability  TEXT,
+        resultCount INTEGER NOT NULL,
+        elapsedMs   INTEGER NOT NULL,
+        createdAt   TEXT NOT NULL
+      );
+    `,
+    down: `
+      DROP TABLE IF EXISTS skill_queries_log;
+      DROP TABLE IF EXISTS skill_gaps;
+      DROP TABLE IF EXISTS skill_events;
+      DROP TABLE IF EXISTS skill_states;
+    `,
+  },
 ];
 
 const CURRENT_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

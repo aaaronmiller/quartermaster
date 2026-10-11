@@ -4,7 +4,6 @@
 // as each command is implemented; until then a recognized command
 // returns an honest "not implemented" envelope (never a fake success).
 // ─────────────────────────────────────────────────────────────
-
 import { allowlistCommand, auditCommand } from './commands/audit';
 import { listCommand } from './commands/catalog';
 import { composeCommand } from './commands/compose';
@@ -23,12 +22,12 @@ import { queryCommand } from './commands/query';
 import { safetyCommand } from './commands/safety';
 import { proposalCommand, proposeCommand } from './commands/proposal';
 import { scanCommand } from './commands/scan';
+import { skillCommand, gapCommand } from './commands/skill';
 import { statusCommand } from './commands/status';
 import { pinCommand, syncCommand, unpinCommand } from './commands/sync';
 import { tuiCommand } from './commands/tui';
 import { webCommand } from './commands/web';
 import { type OutputEnvelope, type ParsedArgs, EXIT, emit, failure, parseArgs } from './output';
-
 const VERSION = '3.0.0';
 
 type CommandHandler = (args: ParsedArgs) => Promise<OutputEnvelope> | OutputEnvelope;
@@ -41,7 +40,6 @@ interface CommandSpec {
   handler?: CommandHandler;
 }
 
-/** The command registry — single source of truth for dispatch and `--help`. */
 const COMMANDS: Record<string, CommandSpec> = {
   scan: { summary: 'Scan library roots and update catalog', fr: 'FR-001..006', handler: scanCommand },
   list: { summary: 'List/filter catalog (by type, capability, source, path)', fr: 'FR-006', handler: listCommand },
@@ -70,6 +68,8 @@ const COMMANDS: Record<string, CommandSpec> = {
   query: { summary: 'Agent query interface (machine-readable)', fr: 'FR-130,131', handler: queryCommand },
   mcp: { summary: 'Optional MCP query server (CLI stays primary)', fr: 'FR-132', handler: mcpCommand },
   config: { summary: 'Get/set local configuration', fr: 'Phase 0 / config', handler: configCommand },
+  skill: { summary: 'Skill registry — Level-0 discovery, dedupe, vetted, gaps, events, matrix', fr: 'Phase 3 / D3.1-D3.8', handler: skillCommand },
+  gap: { summary: 'Record/query capability gaps (pressure-relief for core bloat)', fr: 'Phase 3 / D3.7', handler: gapCommand },
   tui: { summary: 'Launch terminal interface', fr: 'NFR-052', handler: tuiCommand },
   web: { summary: 'Serve local web interface', fr: 'NFR-052', handler: webCommand },
 };
@@ -103,6 +103,8 @@ const SUBCOMMANDS: Record<string, string[]> = {
   query: ['list-skills', 'search --capability <c>', 'get <id>', 'audit <id>', 'status <harness>', 'related <id>', 'scaffold <type> <path>'],
   mcp: ['status', 'serve'],
   config: ['get <key>', 'set <key> <value>', 'list', 'path'],
+  skill: ['search <text> [--capability <c>] [--status <s>] [--limit N]', 'get <ref> [--level 0|1|2]', 'resolve <ref>', 'dedupe <text> [--limit N]', 'vetted <skill>', 'matrix [harness]', 'event emit --skill <name> [--trigger ...] [--outcome ...] [--clause <id>]', 'event list [--skill <name>]', 'gap record --capability <cap> --context <text>', 'gap list [--capability <cap>]'],
+  gap: ['record --capability <cap> --context <text>', 'list [--capability <cap>]'],
   tui: ['(launch terminal interface)'],
   web: ['(serve local web interface)'],
 };

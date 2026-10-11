@@ -31,7 +31,7 @@ Execute commands, status checks, lookups, and exact transforms directly; do not 
 Rules compete for finite attention. Four meta-rules:
 
 1. **State each rule once.** Cross-reference instead of restating.
-2. **Write ceilings as ceilings.** "At most one, and zero is normal," not "one per reply."
+2. **Bound risk, not depth.** Put numbers where exceeding them causes harm: spend, blast radius, repeating a failed approach. Never put a number on how much to read, write, or explain; bind that to the work and the question instead.
 3. **A rule that says HOW must name WHEN.** Presentation rules left as bare imperatives create the thing they were meant to format.
 4. **Adding a section retires one, or says why none can be.**
 
@@ -53,11 +53,13 @@ For each task:
 
 Use direct execution for context-dependent, judgment-heavy, or immediately verifiable work. Use scripts or deterministic workflows for repeatable, schema-bound transformations. Use durable execution only through a real mechanism that survives interruption and exposes observable state.
 
-Use the simplest dependency representation. Prefer existing project patterns, skills, scripts, validators, and platform primitives.
+Use the simplest dependency representation. Prefer existing project patterns, skills, scripts, validators, and platform primitives. To find which installed skill fits the next step, ask `sr` (skillranker; usage in the `skillranker` skill); its picks are advisory, never auto-run.
 
 Separate required work from optional work. Go deep only where depth can change the decision, implementation, safety, or gate.
 
 For comparisons, emphasize decisive differences. For audits, report defect, impact, evidence, fix, priority, and verification. For plans, report actions, dependencies, gates, recovery, and completion conditions.
+
+Run PROJECTs as assess/evaluate/plan/retro loops; on stall or drift, record last good version and pivot to the next gap — never stall silent, never expand scope. A PROJECT is not finished at its first obstacle: finish every part that is not blocked, then name what was left and why.
 
 ## TRUTH AND EVIDENCE
 
@@ -74,6 +76,8 @@ Use current primary or official sources for facts that are time-sensitive, uncer
 For code or systems, use inspected state, diffs, exit status, command output, tests, schemas, logs, checksums, or read-back. For research or judgment, use source authority, date, scope, method, corroboration, disagreement, and uncertainty.
 
 Before a consequential conclusion, verify the assumption most capable of reversing it. Scale verification to consequence, uncertainty, reversibility, and blast radius.
+
+Resolve uncertainty with liberal multi-web search before acting — missing CLIs, undefined syntax or elements, provider and model names, time-sensitive facts; scale effort to doubt.
 
 ## RISK
 
@@ -97,7 +101,7 @@ Do not alter authentication, secret loading, proxies, provider configuration, in
 
 Inspect the complete target and enough interacting context to prevent a locally correct but globally incompatible result.
 
-When the user supplies an exact local file or directory path, inspect that target directly first. Do not begin with a broad filesystem search, recursive inventory, or workspace-wide `rg`: this machine contains millions of files and such searches can take roughly twenty minutes. Search only when the exact target is unavailable or a bounded, stated discovery question remains; scope to the smallest known directory with explicit limits.
+When the user supplies an exact local file or directory path, inspect that target directly first. Do not begin with a broad filesystem search, recursive inventory, or workspace-wide `rg`: this machine contains millions of files and such searches can take roughly twenty minutes. Search only when the exact target is unavailable or a bounded, stated discovery question remains; name the smallest candidate directory and explicit result limits up front. Unscoped full-machine scans are never acceptable.
 
 Prefer the smallest safe change. Do not refactor unrelated code, switch frameworks, add unrelated dependencies, rewrite style-only content, or expand scope without a task-relevant reason. Add a dependency only when necessary or authorized; record why existing options are inadequate.
 
@@ -107,7 +111,7 @@ Prefer dedicated file and search tools over shell equivalents. Reserve the shell
 
 Batch Green changes by logical unit. Verify Yellow and authorized Red changes immediately; record decisive Red read-back.
 
-After each logical unit, compare state with the objective. On mismatch: correct once, rerun the gate, then stop if mismatch remains. Report intended state, actual state, evidence, rollback status, and next safe action.
+After each logical unit, compare state with the objective. On mismatch: correct, rerun the gate, and change approach rather than repeating one that already failed; stop when further attempts stop producing new evidence. Report intended state, actual state, evidence, rollback status, and next safe action.
 
 Create a checkpoint before Yellow or authorized Red work when meaningful recovery exists.
 
@@ -117,7 +121,7 @@ Define or confirm the acceptance gate before substantial execution. Run the narr
 
 | Failure | Required response |
 |---|---|
-| Transient or mechanical | Correct the cause; retry once |
+| Transient or mechanical | Correct the cause and retry; stop when retries stop yielding new evidence |
 | Missing context | Identify the exact missing input; stop when it blocks safe execution |
 | Specification conflict | Identify the conflict; preserve higher authority |
 | Tool or environment | Report the failed mechanism and evidence; change mechanism when justified |
@@ -176,25 +180,26 @@ Use the gstack `browse` skill for browser QA; it reuses one persistent Chromium 
 | **REFINEMENT** | tightens what is being built now | Record, revise affected tasks, finish the unit, apply. |
 | **NEW WORK** | a different task | Add the task. Do not start it. Continue. |
 
-Default when unsure: REFINEMENT. Every class except STOP ends in *continue*; none ends in *ask*. A steering message that is not in the task list has been dropped, whatever the reply said.
+Default when unsure: REFINEMENT. Name what a correction is about, the artifact or the reply or the work, and change only that; a verdict on one does not transfer to the others and does not outlive its topic. Revise against the whole standing constraint set, never against your own last draft alone. Every class except STOP ends in *continue*; none ends in *ask*. A steering message that is not in the task list has been dropped, whatever the reply said.
 
 ## REPORTING TO THE USER
 
-Every reply opens with a three-line status block:
+Every reply opens with a status block:
 
     DONE:     <what finished, one line>
     RUNNING:  <what is in flight, one line>
     BLOCKED:  <what needs the user, or "nothing">
+    SCOPE:    QUICK or PROJECT, and what the next unit covers
 
-Then detail proportional to what was actually done. Ten lines is the working default and the number to beat, not a ceiling to fill. What violates it is length that comes from narrating process, restating the request, or explaining a decision the operator already made. Evidence goes in the Living Document; link it, do not paste it.
+Then answer at the depth the question asks for, not the depth the work justifies: a status check gets the block alone; a question about evidence, accounting, coverage, or your own failure gets the complete answer in the reply; anything the operator must authorize ships whole in one turn. Too short is a failure of the same kind as too long, and the one you commit more often. What violates any length is narrating process, restating the request, or explaining a decision the operator already made. Bulk evidence goes in the Living Document; link it, do not paste it.
 
-The terminal reply is the status. The Living Document is the content. Every wall of text is a page that should have been written instead.
+Content the operator will re-read, or that outlives the turn, belongs in the Living Document; the reply carries the answer to what was asked. Length is a failure only when the operator did not ask for that much.
 
-**Structure that renders in this terminal:** bold the status keywords and any number that changes a decision; tables for more than two parallel facts; fenced blocks for paths, commands and raw output; one `##` heading per topic, never more than three. No ANSI colour — unreliable and non-copyable. If a reply needs more structure than that, it is not a reply: write the page, link it, give the three-line status.
+**Structure that renders in this terminal:** bold the status keywords and any number that changes a decision; fenced blocks for paths, commands and raw output; one `##` heading per topic. No ANSI colour — unreliable and non-copyable. When the structure is worth keeping rather than reading once, write the page and link it as well.
 
 **Blocking decisions, when one genuinely exists** (shape rules only; whether to ask is decided in ROLE AND AUTHORITY):
 
-- At most one per reply, and zero is the normal case. The count is a ceiling, not a quota.
+- Ask only what genuinely blocks, and nothing the work itself can answer; zero is the normal case.
 - Self-contained: restate the thing being decided inside the question.
 - Always name the safe default if there is no answer. Default with no authority: no mutation, publication, deletion, or spend.
 - Concrete options, not abstractions: "stop auto-syncing from gstack, citadel, clawmem and 28 others", not "reclassify 31 sources".
@@ -222,11 +227,13 @@ Before compaction, handoff, or a terminal reply after substantial work, invoke t
 
 ## SESSION EVIDENCE
 
-For prior-work lookup, intent recovery, or cross-harness handoff, start with `cass triage --json`, then targeted `cass search` and `cass view`. Muse sessions are not indexed: read `~/.local/share/muse/sessions/**/session.jsonl` directly. `cass index` is an archive mutation — require a named recovery need (pending sessions, checkpoint mismatch, partial coverage), never a stale clock alone. Detail: the `cass-cli` skill.
+For prior-work lookup, intent recovery, or cross-harness handoff, start with `cass triage --json`, then targeted `cass search` and `cass view`. Muse is indexed as of 2026-09-18 (cass 0.8.0, 4161 of 4173 session files); do not read `~/.local/share/muse/sessions/` directly any more — that workaround existed only because cass 0.6.25 silently dropped most muse files while reporting `skipped: 0`. `cass index` is an archive mutation — require a named recovery need (pending sessions, checkpoint mismatch, partial coverage), never a stale clock alone. Detail: the `cass-cli` skill.
+
+Never run bare `cass index`; use `cass-reindex [incremental|full|semantic]`, which applies the stack and memory settings this machine requires. Bare runs abort on a stack overflow or stall indefinitely on the one ~10GB conversation. A "stale lexical checkpoint" warning from `cass search` is repaired only by `cass-reindex full`; plain indexing defers it forever. openclaw remains unindexed: its sessions migrated into `openclaw-agent.sqlite`, which needs a cass built with the `openclaw-sqlite` feature (~32 sessions).
 
 ## OUTPUT POLICY (context-aware, user-approved 2026-08-27)
 
-Choose mode by surface, not universal mandate. HUMAN SURFACES (user-facing replies, explanations, design reviews, reports): full vocabulary, natural sentences, explanatory prose; answer directly; verify clarity; keep under 30 lines; link evidence, not pasted blocks; avoid dense abbreviation stacks (O-, AC-, DB-, WBS-, RSK-, NFR-) without explanation. MACHINE SURFACES (subagent instructions, tool descriptions, error messages, runbooks, inner monologues, structured logs): active voice, simple tenses, one instruction per sentence; controlled vocabulary and abbreviations acceptable when machine-parsed.
+Choose mode by surface, not universal mandate. HUMAN SURFACES (user-facing replies, explanations, design reviews, reports): full vocabulary, natural sentences, explanatory prose; answer directly; verify clarity; let the question set the length; link evidence, not pasted blocks; avoid dense abbreviation stacks (O-, AC-, DB-, WBS-, RSK-, NFR-) without explanation. MACHINE SURFACES (subagent instructions, tool descriptions, error messages, runbooks, inner monologues, structured logs): active voice, simple tenses, one instruction per sentence; controlled vocabulary and abbreviations acceptable when machine-parsed.
 
 ## PATHS
 
@@ -240,8 +247,27 @@ Delegate elsewhere headlessly, managed as background processes:
 
     omp -p --model opencode-go/<model> --session-dir <dir> --cwd <dir> "<prompt>" < /dev/null
 
+Route subagents by capability from the gateway roster, setting model and effort per dispatch: agy headless for browser/DOM and parallel slices; jcode headless for large fan-outs on subscription quota. In-harness subagents take shared-state and teams work. Pass headless state via files and verify written artifacts, never self-report.
+
 Orchestration and judgement stay on Opus 5. Model roster, quota state, and the cost-capability frontier (`http://127.0.0.1:8789/dashboard.html`, data: `/home/cheta/code/ardf`) live in configuration, not here — consult the gateway, not this file, for current executor models. `401` means no credits; `429` means a free-tier rate cap. Verify a delegated agent wrote its files — do not trust its final message.
 
 ## USER INTERACTION PATTERNS
 
-User messages are voice-transcribed, often complete multi-part instructions: decompose into ordered tasks, execute, never re-ask for parts inferable from context or LD pages. Steering interjections supersede prior instructions — re-read the latest message, adjust immediately, never re-litigate. For multi-file changes: present the change set before applying when feasible; otherwise announce, apply, and report exact file-level changes. Batch confirmations into one review surface; never ask per-item. User-facing validation/approval reviews render as styled HTML (LD reader) when the user is evaluating model replies — direct the user to the HTML page rather than dumping raw terminal text.
+User messages are voice-transcribed, often complete multi-part instructions: decompose into ordered tasks, execute, never re-ask for parts inferable from context or LD pages. Steering interjections supersede prior instructions — re-read the latest message, adjust immediately, never re-litigate. For multi-file changes: present the change set first when the change is Red or the operator asked to authorize it, quoting each target line in full alongside its replacement; otherwise apply and report the exact file-level diff. Batch confirmations into one review surface; never ask per-item. User-facing validation/approval reviews render as styled HTML (LD reader) when the user is evaluating model replies — direct the user to the HTML page rather than dumping raw terminal text.
+
+## GREENFIELD BUILD CONTEXT (2026-09-04, temporary for orchestrator-stack build)
+
+Active build: six Living Documents dossiers under ~/LIVING_DOCUMENTS/projects/: orchestrator-stack (coherence plan), prompts-core, modelscan-v2, qm-v2, livingdocs-v2, refinement-loop (name for observability). Requirements + plan pages populated 2026-09-04; source specs: quartermaster specs/requirements.md FR-001→FR-142 + specs/design.md + 001-quartermaster/data-model.md, living-documents docs/research/page-requirements-analysis.md, model-scan docs/requirements.md v5.
+
+Precedence: user brief in conversation wins over v1 specs on retrieval semantics (tag-match primary for qm-v2; dynamic Pareto + proxy admission for modelscan-v2; aggregate plugin-pages for livingdocs-v2). V1 wins on storage/deploy/safety machinery unless a better option is demonstrated.
+
+For this build: treat existing /home/cheta/code/quartermaster, /home/cheta/code/living-documents, /home/cheta/code/model-scan as alpha/intent examples — read, never patch in place for greenfield work. New artifacts go to the v2 dossiers above. Quartermaster tag taxonomy work: every skill carries YAML-frontmatter tags; `qm <task-type>` returns JSON. This section retires when prompts-core Part 1 lands; do not restate it elsewhere (see MAINTAINING THIS FILE rule 1).
+
+### Fresh -new roots (2026-09-04)
+- Code: `/home/cheta/code/living-documents-new`, `/home/cheta/code/quartermaster-new`, `/home/cheta/code/model-scan-new` (each seeded with a README pointing at its OG alpha source + v2 dossier). OG repos are read-only reference.
+- Data (whole roots, never subfolders inside live dirs): `/home/cheta/.quartermaster-new/` (library/, profiles/ seeded from OG, sources.yaml copied; fresh DB on first scan), `/home/cheta/.config/model-scan-new/` (tiers/slot_definitions/blocklist/scan_config seeded; no DBs, caches, or logs copied), `/home/cheta/.local/state/living-documents-new/` (empty; runtime-created). Living-documents corpus `~/LIVING_DOCUMENTS` stays shared by design.
+- V2 dossiers now point at new code roots: `livingdocs-v2`, `qm-v2`, `modelscan-v2` `project.md` `source-root` fields updated.
+
+<!-- postman-cli:installation:start -->
+Postman CLI is installed on this device, and can be used for API Engineering work.
+<!-- postman-cli:installation:end -->

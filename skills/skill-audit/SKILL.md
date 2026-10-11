@@ -440,3 +440,13 @@ This file should also be referenced in any skill-creation skill as a resource, s
 understanding description mechanics is essential for authoring skills that fire reliably.
 
 
+
+### Skillshare & Multi-Location Loading:
+
+**`references/skillshare-architecture.md`** — Complete guide to skillshare tool
+architecture, how Hermes discovers skills recursively, and how to fix multi-location
+loading issues (external_dirs double-loading, gstack harness-variant discovery,
+standalone wrapper redundancy, category container duplicates). Includes diagnostic
+commands and design principles. Use this when: skills appear multiple times in
+available_skills, hermes loads skills from unexpected locations, or you need to
+understand how skillshare deploys skills across harnesses.

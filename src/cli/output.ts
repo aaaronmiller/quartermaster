@@ -78,6 +78,14 @@ const VALUE_FLAGS = new Set([
   'text',
   'turns',
   'type',
+  'level',
+  'status',
+  'limit',
+  'skill',
+  'trigger',
+  'outcome',
+  'clause',
+  'context',
 ]);
 
 /**
