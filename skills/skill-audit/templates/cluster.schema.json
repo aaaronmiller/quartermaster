@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "skill-audit cluster decision",
+  "type": "object",
+  "required": [
+    "cluster",
+    "category",
+    "members",
+    "same_task_requests",
+    "pairs",
+    "decisions",
+    "confidence"
+  ],
+  "properties": {
+    "cluster": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string"
+      }
+    },
+    "same_task_requests": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string"
+      }
+    },
+    "pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "relation",
+          "evidence"
+        ],
+        "properties": {
+          "relation": {
+            "enum": [
+              "exact-copy",
+              "version-variant",
+              "same-task",
+              "stance-pair",
+              "overlap",
+              "pipeline",
+              "specialization",
+              "complement"
+            ]
+          }
+        }
+      }
+    },
+    "rubric": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 7,
+      "items": {
+        "type": "string"
+      }
+    },
+    "scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      }
+    },
+    "order_swapped": {
+      "type": "boolean"
+    },
+    "base": {
+      "type": "string"
+    },
+    "grafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "what",
+          "to"
+        ]
+      }
+    },
+    "refusals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "what",
+          "why"
+        ]
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "family_decision": {
+      "type": "string"
+    },
+    "narrow_scores": {
+      "type": "object"
+    },
+    "review_pairs_tested": {
+      "type": "array"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "skill-audit verifier result",
+  "type": "object",
+  "required": [
+    "skill",
+    "files_read",
+    "independent",
+    "items",
+    "missed",
+    "agreement"
+  ],
+  "properties": {
+    "skill": {
+      "type": "string"
+    },
+    "files_read": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "independent": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "ref",
+          "status",
+          "reason"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "confirmed",
+              "rejected",
+              "unclear"
+            ]
+          },
+          "ref": {
+            "type": "string",
+            "pattern": "^(findings|relations|conflicts|comparisons)\\[[0-9]+\\]|description\\.proposed|trigger_tests|recommendation$"
+          }
+        }
+      }
+    },
+    "missed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "detail"
+        ]
+      }
+    },
+    "agreement": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

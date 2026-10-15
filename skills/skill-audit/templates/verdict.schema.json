@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "skill-audit verdict",
+  "type": "object",
+  "required": [
+    "skill",
+    "path",
+    "provenance",
+    "files_read",
+    "category",
+    "summary",
+    "description",
+    "findings",
+    "relations",
+    "recommendation",
+    "confidence"
+  ],
+  "properties": {
+    "skill": {
+      "type": "string",
+      "minLength": 1
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "enum": [
+        "own",
+        "own-copy-diverged",
+        "modified",
+        "downloaded"
+      ]
+    },
+    "files_read": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[^/\\\\][^\\\\]*$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "category": {
+      "enum": [
+        "planning-spec",
+        "software-build",
+        "code-quality",
+        "git-release",
+        "agent-orchestration",
+        "agent-tooling",
+        "memory-continuity",
+        "research",
+        "reasoning-decision",
+        "writing",
+        "documents",
+        "design-ui",
+        "media-motion",
+        "image-art",
+        "diagrams-data-viz",
+        "integrations",
+        "system-ops",
+        "personal-domain"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 10
+    },
+    "description": {
+      "type": "object",
+      "required": [
+        "current",
+        "checks"
+      ],
+      "properties": {
+        "current": {
+          "type": "string"
+        },
+        "current_chars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checks": {
+          "type": "object",
+          "patternProperties": {
+            "^D([1-9]|10)$": {
+              "enum": [
+                "pass",
+                "fail",
+                "n/a"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "proposed": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "proposed_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "line",
+          "quote",
+          "fix"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(B-[A-Z]+|S-[A-Z]+|D([1-9]|10))$"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 20
+          },
+          "file": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string",
+            "minLength": 5
+          }
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "quote_a",
+          "quote_b",
+          "where_b",
+          "fix"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "internal",
+              "operator-rule",
+              "cross-skill"
+            ]
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "where_b": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "other",
+          "relation",
+          "evidence"
+        ],
+        "properties": {
+          "relation": {
+            "enum": [
+              "exact-copy",
+              "version-variant",
+              "same-task",
+              "stance-pair",
+              "overlap",
+              "pipeline",
+              "specialization",
+              "complement"
+            ]
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object"
+    },
+    "trigger_tests": {
+      "type": "object",
+      "properties": {
+        "should": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "type": "string"
+          }
+        },
+        "should_not": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "string",
+      "pattern": "^(keep|improve|merge-into:[a-z0-9-]+|absorb:[a-z0-9-]+(,[a-z0-9-]+)*|narrow|convert-to-command|name-only|retire|escalate)$"
+    },
+    "edits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "file",
+          "new"
+        ]
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    },
+    "secondary_category": {
+      "enum": [
+        "planning-spec",
+        "software-build",
+        "code-quality",
+        "git-release",
+        "agent-orchestration",
+        "agent-tooling",
+        "memory-continuity",
+        "research",
+        "reasoning-decision",
+        "writing",
+        "documents",
+        "design-ui",
+        "media-motion",
+        "image-art",
+        "diagrams-data-viz",
+        "integrations",
+        "system-ops",
+        "personal-domain"
+      ]
+    },
+    "comparisons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "other",
+          "relation",
+          "evidence"
+        ],
+        "properties": {
+          "other": {
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "exact-copy",
+              "version-variant",
+              "same-task",
+              "stance-pair",
+              "overlap",
+              "pipeline",
+              "specialization",
+              "complement",
+              "compared-no-relation"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 5
+          }
+        }
+      }
+    }
+  }
+}
