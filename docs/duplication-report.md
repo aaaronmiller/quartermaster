@@ -116,9 +116,9 @@ Total declared sources: **43** (per `sources.yaml` comment and `canon-task-spec`
 
 | pair | shared phrases | overlap | meaning |
 |---|---|---|---|
-| `deprecated/strata` × `strata-authoring` | 19 | **100%** | identical activation — arbitrary which fires |
-| `create_new_spec_design_project` × `strata-authoring` | 16 | 80% | — |
-| `speckit-autonomous-run` × `strata-implementing` | 5 | 50% | — |
+| `deprecated/spec-prep` × `spec-prep-authoring` | 19 | **100%** | identical activation — arbitrary which fires |
+| `create_new_spec_design_project` × `spec-prep-authoring` | 16 | 80% | — |
+| `speckit-autonomous-run` × `spec-prep-implementing` | 5 | 50% | — |
 | `backtranslation-spec-auditor` | 0 quoted triggers | — | cannot fire on intent at all |
 
 **What name-matching misses:** The audit's head-to-head contests (13 conflict losers, 47 gstack duplicates) found losers that *do not* share a name (e.g. `security-audit` vs `security-auditor`, `browse` vs `browser`, `code-review` vs `code-reviewer` vs `github-code-review`). Those are near-duplicates by description/capability, invisible to a name GROUP BY.
@@ -141,7 +141,7 @@ Total declared sources: **43** (per `sources.yaml` comment and `canon-task-spec`
 | `gstack` (repo root, 47 skills) | **deprecated, disabled 2026-08-24** | `gstack-agents-builds` (built `.agents/skills` copies) | `sources.yaml` comments: "Both were catalogued and both deployed, so every one shipped twice ... The builds win: fuller trigger phrases, provenance marker" |
 | `skills-repo` (`~/git/skills`) | deprecated, path gone | — | `sources.yaml` `enabled: false` `tags: [missing-source]` |
 | `custom-skills/staged-for-deletion/*` | retired (18 skills, including two `backtranslation-spec-auditor` versions + stale `living-documents`) | replacements in `spec/` family | `scanner.ts` `DEFAULT_SKIP` skips `staged-for-deletion`; proposal §Before creating |
-| `strata` (deprecated) | superseded by `strata-authoring` + `strata-implementing` | `spec-workflow` (classic, 3 gates) + `strata` (intent-weaving, 3 gates) per proposal M1 | consolidation proposal M1, trigger 100% overlap |
+| `spec-prep` (deprecated) | superseded by `spec-prep-authoring` + `spec-prep-implementing` | `spec-workflow` (classic, 3 gates) + `spec-prep` (intent-weaving, 3 gates) per proposal M1 | consolidation proposal M1, trigger 100% overlap |
 | `intent-archaeology` 96-line vs `intent-archaeology-v1.2.1` 383-line | merged → 1 skill | base = v1.2.1, `userprompt-mine-skill` folded as `references/cass-session-mining.md` | proposal M3 |
 | `mcp-builder` + `mcp-conversion` | merged → `mcp-toolkit` (2 gates) | — | proposal M4 |
 | `youtube-transcript-extraction` vs `yt-transcript-obsidian-artifact` | merged → `yt-transcript-obsidian-artifact` | base = latter (3-phase protocol) | proposal M5 |
@@ -167,7 +167,7 @@ Per `system-rebuild-plan-2026-08-29` § Verified state + audit FINDINGS:
 | Retriever returns 4 copies of the same procedure | 301 hash groups + 318 name groups + per-harness replication (3.5× inflation) | Exact-duplicate group list; harness-default prefix flagged; `gstack` vs `gstack-agents-builds` rename case |
 | Disabled skill that holds the only capability is invisible | `gstack` is disabled but was the source of truth for 47 skills before the builds fork | Provenance table shows which capabilities live only in a disabled source (join `hash` → source) |
 | Superseded skill returned instead of its successor | `superseded_by` not yet in catalog; name collision returns the old file | Superseded table (§5.2) gives the resolution map the index must enforce |
-| Near-duplicates compete for activation (80–100% trigger overlap) | `strata` family: three skills open with "ALWAYS invoke when the user wants to start a new project" | Trigger-overlap matrix; recommendation: make trigger sets disjoint (§3) |
+| Near-duplicates compete for activation (80–100% trigger overlap) | `spec-prep` family: three skills open with "ALWAYS invoke when the user wants to start a new project" | Trigger-overlap matrix; recommendation: make trigger sets disjoint (§3) |
 | Ranking built on junk | 97 description defects + ~20 single-pass skills | Junk candidates list; `description-grade` verdicts in `verdicts.json` |
 
 **Required index policy (derived):**

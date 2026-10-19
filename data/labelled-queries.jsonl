@@ -49,8 +49,8 @@
 {"query": "convert this transcript to obsidian", "expectedSkill": "yt-transcript-obsidian-artifact"}
 {"query": "turn this into a PRD spec", "expectedSkill": "spec-workflow"}
 {"query": "spec this out for a new project", "expectedSkill": "spec-workflow"}
-{"query": "create a new project from idea to spec", "expectedSkill": "strata-authoring"}
-{"query": "weave intent into my spec", "expectedSkill": "strata"}
+{"query": "create a new project from idea to spec", "expectedSkill": "spec-prep-authoring"}
+{"query": "weave intent into my spec", "expectedSkill": "spec-prep"}
 {"query": "write a living document for my project", "expectedSkill": "living-documents"}
 {"query": "build a kanban swarm of agents", "expectedSkill": "clawteam"}
 {"query": "coordinate multiple agents in parallel", "expectedSkill": "dispatching-parallel-agents"}

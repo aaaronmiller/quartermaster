@@ -20,7 +20,7 @@ interface SourceMeta {
 
 const SUPERSEDED_FALLBACK: Record<string, { successor: string; reason: string }> = {
   'create_new_spec_design_project-skill': { successor: 'spec-workflow', reason: 'merged into spec-workflow gate-create' },
-  strata: { successor: 'strata-authoring', reason: 'staged-for-deletion; successor is strata-authoring/strata-implementing pair' },
+  spec-prep: { successor: 'spec-prep-authoring', reason: 'staged-for-deletion; successor is spec-prep-authoring/spec-prep-implementing pair' },
   'intent-archaeology': { successor: 'intent-archaeology-v1.2.1', reason: 'base source v1.2.1 is the complete lineage' },
   'mcp-builder': { successor: 'mcp-toolkit', reason: 'merged into mcp-toolkit (build+convert gates)' },
   'mcp-conversion': { successor: 'mcp-toolkit', reason: 'merged into mcp-toolkit' },

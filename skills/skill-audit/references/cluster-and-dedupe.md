@@ -42,7 +42,7 @@ The others justify boundaries, narrowing, modes or budget measures.
 `scripts/cluster.py` proposes clusters and candidate pairs. On this kind of
 collection, real duplicates with different wording score only 0.03 to 0.15
 in its similarity measure (measured: `unslop`/`deslop` 0.03,
-`strata`/`spec-workflow` 0.09, `humanize-writing`/`stop-slop` 0.12), below
+`spec-prep`/`spec-workflow` 0.09, `humanize-writing`/`stop-slop` 0.12), below
 the threshold that links clusters. So the script's clusters are a batching
 convenience, never evidence that two skills differ. The script also emits:
 
